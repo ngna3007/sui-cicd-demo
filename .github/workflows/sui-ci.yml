@@ -105,31 +105,65 @@ jobs:
         \             echo \"Fixing keystore path in client.yaml...\"\n          \
         \              sed -i 's|/home/ngocanh/.sui/sui_config/sui.keystore|/home/runner/.sui/sui_config/sui.keystore|g'\
         \ ~/.sui/sui_config/client.yaml\n                        echo \"\u2705 Updated\
-        \ keystore path\"\n                        \n                        # List\
-        \ files to verify they exist\n                        echo \"Files in ~/.sui/sui_config:\"\
-        \n                        ls -la ~/.sui/sui_config/\n                    \
-        \    \n                        echo \"=== Pre-deployment Checks ===\"\n  \
-        \                      echo \"Current active environment:\"\n            \
-        \            sui client active-env || {\n                            echo\
-        \ \"\u274C Failed to get active environment\"\n                          \
-        \  exit 1\n                        }\n                        \n         \
-        \               echo \"Current active address:\"\n                       \
-        \ ACTIVE_ADDRESS=$(sui client active-address 2>/dev/null || echo \"\")\n \
-        \                       if [ -z \"$ACTIVE_ADDRESS\" ] || [ \"$ACTIVE_ADDRESS\"\
-        \ = \"None\" ]; then\n                            echo \"\u274C No active\
-        \ address found.\"\n                            echo \"Available addresses:\"\
-        \n                            sui client addresses || echo \"No addresses\
-        \ available\"\n                            echo \"Please check your SUI_CONFIG\
-        \ and SUI_KEYSTORE secrets.\"\n                            exit 1\n      \
-        \                  else\n                            echo \"\u2705 Active\
-        \ address: $ACTIVE_ADDRESS\"\n                        fi\n               \
-        \         \n                        # Check if we have gas before attempting\
-        \ deployment\n                        echo \"Checking gas balance...\"\n \
-        \                       if ! sui client gas; then\n                      \
-        \      echo \"\u274C Failed to check gas balance or no gas objects found.\"\
-        \n                            echo \"Please fund your address with devnet\
-        \ SUI tokens before deployment.\"\n                            echo \"You\
-        \ can get devnet tokens from: https://discord.com/channels/916379725201563759/971488439931392130\"\
+        \ keystore path\"\n                        \n                        # Verify\
+        \ the files have correct content\n                        echo \"=== Debugging\
+        \ Configuration Files ===\"\n                        echo \"client.yaml content:\"\
+        \n                        cat ~/.sui/sui_config/client.yaml\n            \
+        \            echo \"\"\n                        echo \"keystore content:\"\
+        \n                        cat ~/.sui/sui_config/sui.keystore\n           \
+        \             echo \"\"\n                        \n                      \
+        \  # Try to check if Sui recognizes the configuration\n                  \
+        \      echo \"=== Testing Sui Configuration ===\"\n                      \
+        \  echo \"Active environment:\"\n                        sui client active-env\
+        \ || echo \"Failed to get active env\"\n                        \n       \
+        \                 echo \"Checking addresses (this might fail):\"\n       \
+        \                 sui client addresses || {\n                            echo\
+        \ \"Failed to get addresses from keystore. Creating a new address for CI deployment...\"\
+        \n                            \n                            # Create a new\
+        \ address for CI deployment\n                            echo \"Creating new\
+        \ address...\"\n                            NEW_ADDRESS=$(sui client new-address\
+        \ ed25519 --json | jq -r '.address' 2>/dev/null || {\n                   \
+        \             # Fallback if JSON parsing fails\n                         \
+        \       sui client new-address ed25519 | grep -oE '0x[a-fA-F0-9]+' | head\
+        \ -1\n                            })\n                            \n     \
+        \                       if [ -n \"$NEW_ADDRESS\" ]; then\n               \
+        \                 echo \"\u2705 Created new address: $NEW_ADDRESS\"\n    \
+        \                            \n                                # Try to get\
+        \ devnet tokens\n                                echo \"Requesting devnet\
+        \ tokens...\"\n                                curl -X POST https://faucet.devnet.sui.io/gas\
+        \                                     -H 'Content-Type: application/json'\
+        \                                     -d \"{\"FixedAmountRequest\":{\"recipient\"\
+        :\"$NEW_ADDRESS\"}}\"                                     --silent --show-error\
+        \ || echo \"Warning: Failed to request tokens from faucet\"\n            \
+        \                    \n                                # Wait a bit for the\
+        \ faucet\n                                echo \"Waiting for faucet transaction...\"\
+        \n                                sleep 10\n                             \
+        \   \n                                # Check if we received tokens\n    \
+        \                            echo \"Checking gas objects...\"\n          \
+        \                      sui client gas || {\n                             \
+        \       echo \"\u274C No gas objects found. Deployment cannot proceed.\"\n\
+        \                                    echo \"Please manually fund the address:\
+        \ $NEW_ADDRESS\"\n                                    echo \"You can use the\
+        \ faucet at: https://discord.com/channels/916379725201563759/971488439931392130\"\
+        \n                                    exit 1\n                           \
+        \     }\n                            else\n                              \
+        \  echo \"\u274C Failed to create new address\"\n                        \
+        \        exit 1\n                            fi\n                        }\n\
+        \                        \n                        # Final check - get active\
+        \ address\n                        echo \"=== Final Configuration Check ===\"\
+        \n                        ACTIVE_ADDRESS=$(sui client active-address 2>/dev/null\
+        \ || echo \"\")\n                        if [ -z \"$ACTIVE_ADDRESS\" ] ||\
+        \ [ \"$ACTIVE_ADDRESS\" = \"None\" ]; then\n                            echo\
+        \ \"\u274C No active address found after configuration\"\n               \
+        \             exit 1\n                        else\n                     \
+        \       echo \"\u2705 Active address: $ACTIVE_ADDRESS\"\n                \
+        \        fi\n                        \n                        # Check if\
+        \ we have gas before attempting deployment\n                        echo \"\
+        Checking gas balance...\"\n                        if ! sui client gas; then\n\
+        \                            echo \"\u274C Failed to check gas balance or\
+        \ no gas objects found.\"\n                            echo \"Please fund\
+        \ your address with devnet SUI tokens before deployment.\"\n             \
+        \               echo \"You can get devnet tokens from: https://discord.com/channels/916379725201563759/971488439931392130\"\
         \n                            exit 1\n                        fi\n       \
         \                 \n                        echo \"=== Publishing Package\
         \ ===\"\n                        if sui client publish --gas-budget 100000000;\
