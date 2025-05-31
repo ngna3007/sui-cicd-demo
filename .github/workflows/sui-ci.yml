@@ -64,6 +64,7 @@ jobs:
       env:
         SUI_CONFIG: ${{ secrets.SUI_CONFIG }}
         SUI_KEYSTORE: ${{ secrets.SUI_KEYSTORE }}
+        SUI_ALIASES: ${{ secrets.SUI_ALIASES }}
       run: "\n                        # Verify sui command is available\n        \
         \                which sui || (echo \"Sui command not found in PATH\" && exit\
         \ 1)\n                        sui --version\n                        \n  \
@@ -73,86 +74,131 @@ jobs:
         \ echo \"SUI_CONFIG secret present: $([ -n \"$SUI_CONFIG\" ] && echo \"YES\"\
         \ || echo \"NO\")\"\n                        echo \"SUI_KEYSTORE secret present:\
         \ $([ -n \"$SUI_KEYSTORE\" ] && echo \"YES\" || echo \"NO\")\"\n         \
-        \               \n                        if [ -n \"$SUI_CONFIG\" ] && [ -n\
-        \ \"$SUI_KEYSTORE\" ]; then\n                            # Write config file\n\
-        \                            echo \"$SUI_CONFIG\" > ~/.sui/sui_config/client.yaml\n\
+        \               echo \"SUI_ALIASES secret present: $([ -n \"$SUI_ALIASES\"\
+        \ ] && echo \"YES\" || echo \"NO\")\"\n                        \n        \
+        \                if [ -n \"$SUI_CONFIG\" ] && [ -n \"$SUI_KEYSTORE\" ] &&\
+        \ [ -n \"$SUI_ALIASES\" ]; then\n                            # Write config\
+        \ file\n                            echo \"$SUI_CONFIG\" > ~/.sui/sui_config/client.yaml\n\
         \                            echo \"\u2705 Written SUI_CONFIG to client.yaml\"\
-        \n                            \n                            # Write keystore\
-        \ file\n                            echo \"$SUI_KEYSTORE\" > ~/.sui/sui_config/sui.keystore\n\
-        \                            echo \"\u2705 Written SUI_KEYSTORE to sui.keystore\"\
-        \n                            \n                            # Set proper permissions\
-        \ on keystore\n                            chmod 600 ~/.sui/sui_config/sui.keystore\n\
+        \n                            \n                            # Write aliases\
+        \ file\n                            echo \"$SUI_ALIASES\" > ~/.sui/sui_config/sui.aliases\n\
+        \                            echo \"\u2705 Written SUI_ALIASES\"\n       \
+        \                     \n                            # Write temporary old\
+        \ keystore\n                            echo \"$SUI_KEYSTORE\" > ~/.sui/sui_config/sui.keystore.old\n\
+        \                            echo \"\u2705 Written old keystore format\"\n\
+        \                            \n                            # Convert old keystore\
+        \ format to new format\n                            echo \"=== Converting\
+        \ Keystore Format ===\"\n                            python3 << 'EOF'\nimport\
+        \ json\nimport base64\n\ntry:\n    # Read old format keystore\n    with open('/home/runner/.sui/sui_config/sui.keystore.old',\
+        \ 'r') as f:\n        old_keystore = json.load(f)\n    \n    # Read aliases\n\
+        \    with open('/home/runner/.sui/sui_config/sui.aliases', 'r') as f:\n  \
+        \      aliases = json.load(f)\n    \n    print(f\"Found {len(old_keystore)}\
+        \ keys and {len(aliases)} aliases\")\n    \n    if len(old_keystore) != len(aliases):\n\
+        \        print(\"\u274C Mismatch between number of keys and aliases\")\n \
+        \       exit(1)\n    \n    # Convert to new format\n    new_keystore = []\n\
+        \    for i, (old_key, alias_info) in enumerate(zip(old_keystore, aliases)):\n\
+        \        # Check if it's already in new format\n        if isinstance(old_key,\
+        \ dict):\n            print(f\"Key {i+1} already in new format\")\n      \
+        \      new_keystore.append(old_key)\n        else:\n            # Convert\
+        \ from old format (base64 string) to new format\n            print(f\"Converting\
+        \ key {i+1}: {alias_info['alias']}\")\n            \n            # The old\
+        \ format is just base64 encoded private key\n            # We need to create\
+        \ the new format with suiprivkey prefix\n            new_entry = {\n     \
+        \           \"alias\": alias_info[\"alias\"],\n                \"data\": f\"\
+        suiprivkey1q{old_key}\",  # Add suiprivkey1q prefix\n                \"public_key\"\
+        : alias_info[\"public_key_base64\"]\n            }\n            new_keystore.append(new_entry)\n\
+        \    \n    # Write new format keystore\n    with open('/home/runner/.sui/sui_config/sui.keystore',\
+        \ 'w') as f:\n        json.dump(new_keystore, f, indent=2)\n    \n    print(f\"\
+        \u2705 Successfully converted {len(new_keystore)} keys to new format\")\n\
+        \    \nexcept Exception as e:\n    print(f\"\u274C Keystore conversion failed:\
+        \ {e}\")\n    exit(1)\nEOF\n                            \n               \
+        \             # Set proper permissions\n                            chmod\
+        \ 600 ~/.sui/sui_config/sui.keystore\n                            chmod 600\
+        \ ~/.sui/sui_config/sui.aliases\n                            \n          \
+        \                  # Clean up temporary file\n                           \
+        \ rm ~/.sui/sui_config/sui.keystore.old\n                            \n  \
+        \                          echo \"\u2705 Keystore conversion complete\"\n\
         \                            \n                            # Debug: Show file\
-        \ sizes and structure\n                            echo \"Config file size:\
-        \ $(wc -c < ~/.sui/sui_config/client.yaml) bytes\"\n                     \
-        \       echo \"Keystore file size: $(wc -c < ~/.sui/sui_config/sui.keystore)\
-        \ bytes\"\n                            \n                            # Show\
-        \ config structure (without sensitive data)\n                            echo\
-        \ \"=== Config File Structure ===\"\n                            grep -E 'active_env:|active_address:|alias:|rpc:'\
+        \ sizes\n                            echo \"Config file size: $(wc -c < ~/.sui/sui_config/client.yaml)\
+        \ bytes\"\n                            echo \"Keystore file size: $(wc -c\
+        \ < ~/.sui/sui_config/sui.keystore) bytes\"\n                            echo\
+        \ \"Aliases file size: $(wc -c < ~/.sui/sui_config/sui.aliases) bytes\"\n\
+        \                            \n                            # Show config structure\
+        \ (without sensitive data)\n                            echo \"=== Config\
+        \ File Structure ===\"\n                            grep -E 'active_env:|active_address:|alias:|rpc:'\
         \ ~/.sui/sui_config/client.yaml || echo \"No config structure found\"\n  \
-        \                          \n                            # Test if keystore\
-        \ is valid JSON\n                            echo \"=== Keystore Validation\
-        \ ===\"\n                            if python3 -m json.tool ~/.sui/sui_config/sui.keystore\
-        \ > /dev/null 2>&1; then\n                                echo \"\u2705 Keystore\
-        \ is valid JSON\"\n                                echo \"Number of keys in\
-        \ keystore: $(python3 -c 'import json; print(len(json.load(open(\"~/.sui/sui_config/sui.keystore\"\
-        .replace(\"~\", \"/home/runner\"))))' 2>/dev/null || echo \"unknown\")\"\n\
-        \                            else\n                                echo \"\
-        \u274C Keystore is not valid JSON\"\n                                echo\
-        \ \"First 100 chars of keystore:\"\n                                head -c\
-        \ 100 ~/.sui/sui_config/sui.keystore\n                            fi\n   \
-        \                         \n                        else\n               \
-        \             echo \"\u274C SUI_CONFIG or SUI_KEYSTORE secret is missing\"\
-        \n                            echo \"Skipping deployment setup...\"\n    \
-        \                        exit 0\n                        fi\n            \
-        \            \n                        # Test sui client commands\n      \
-        \                  echo \"=== Testing Sui Client ===\"\n                 \
-        \       echo \"Active environment:\"\n                        sui client active-env\
-        \ || echo \"\u274C Failed to get active environment\"\n                  \
-        \      \n                        echo \"Available addresses:\"\n         \
-        \               sui client addresses || echo \"\u274C Failed to list addresses\"\
-        \n                        \n                        echo \"Active address:\"\
-        \n                        sui client active-address || echo \"\u274C Failed\
-        \ to get active address\"\n                    "
+        \                          \n                            # Validate new keystore\
+        \ format\n                            echo \"=== New Keystore Validation ===\"\
+        \n                            if python3 -m json.tool ~/.sui/sui_config/sui.keystore\
+        \ > /dev/null 2>&1; then\n                                KEY_COUNT=$(python3\
+        \ -c 'import json; print(len(json.load(open(\"/home/runner/.sui/sui_config/sui.keystore\"\
+        ))))' 2>/dev/null || echo \"0\")\n                                echo \"\u2705\
+        \ New keystore is valid JSON with $KEY_COUNT keys\"\n                    \
+        \            \n                                # Show key structure (non-sensitive\
+        \ parts)\n                                python3 -c \"\nimport json\nwith\
+        \ open('/home/runner/.sui/sui_config/sui.keystore') as f:\n    keys = json.load(f)\n\
+        \    for i, key in enumerate(keys):\n        print(f'Key {i+1}: alias={key.get(\"\
+        alias\", \"unknown\")}, has_data={\"data\" in key and key[\"data\"].startswith(\"\
+        suiprivkey\")}, has_public_key={\"public_key\" in key}')\n\"\n           \
+        \                 else\n                                echo \"\u274C New\
+        \ keystore is not valid JSON\"\n                                exit 1\n \
+        \                           fi\n                            \n           \
+        \             else\n                            echo \"\u274C Required secrets\
+        \ missing\"\n                            echo \"Need: SUI_CONFIG, SUI_KEYSTORE,\
+        \ and SUI_ALIASES\"\n                            echo \"Please add all three\
+        \ secrets to enable deployment\"\n                            exit 0\n   \
+        \                     fi\n                        \n                     \
+        \   # Test sui client commands\n                        echo \"=== Testing\
+        \ Sui Client ===\"\n                        echo \"Active environment:\"\n\
+        \                        sui client active-env || echo \"\u274C Failed to\
+        \ get active environment\"\n                        \n                   \
+        \     echo \"Available addresses:\"\n                        sui client addresses\
+        \ || echo \"\u274C Failed to list addresses\"\n                        \n\
+        \                        echo \"Active address:\"\n                      \
+        \  sui client active-address || echo \"\u274C Failed to get active address\"\
+        \n                    "
     - name: Deploy to devnet
       if: github.ref == 'refs/heads/main' && github.event_name == 'push'
       env:
         SUI_NETWORK: devnet
         SUI_CONFIG: ${{ secrets.SUI_CONFIG }}
         SUI_KEYSTORE: ${{ secrets.SUI_KEYSTORE }}
+        SUI_ALIASES: ${{ secrets.SUI_ALIASES }}
       run: "\n                        # Verify sui command is available\n        \
         \                which sui || (echo \"Sui command not found in PATH\" && exit\
-        \ 1)\n                        \n                        # Check if both SUI_CONFIG\
-        \ and SUI_KEYSTORE are provided\n                        if [ -z \"$SUI_CONFIG\"\
-        \ ] || [ -z \"$SUI_KEYSTORE\" ]; then\n                            echo \"\
-        \u26A0\uFE0F  Deployment skipped: SUI_CONFIG or SUI_KEYSTORE secret is not\
-        \ configured\"\n                            echo \"To enable deployment:\"\
+        \ 1)\n                        \n                        # Check if all required\
+        \ secrets are provided\n                        if [ -z \"$SUI_CONFIG\" ]\
+        \ || [ -z \"$SUI_KEYSTORE\" ] || [ -z \"$SUI_ALIASES\" ]; then\n         \
+        \                   echo \"\u26A0\uFE0F  Deployment skipped: Required secrets\
+        \ are not configured\"\n                            echo \"To enable deployment:\"\
         \n                            echo \"1. Add SUI_CONFIG secret with your wallet\
         \ configuration\"\n                            echo \"2. Add SUI_KEYSTORE\
         \ secret with your keystore file content\"\n                            echo\
-        \ \"3. Fund the wallet with devnet SUI tokens\"\n                        \
-        \    exit 0\n                        fi\n                        \n      \
-        \                  echo \"=== Pre-deployment Checks ===\"\n              \
-        \          echo \"Current active environment:\"\n                        sui\
-        \ client active-env || {\n                            echo \"\u274C Failed\
-        \ to get active environment\"\n                            exit 1\n      \
-        \                  }\n                        \n                        echo\
-        \ \"Current active address:\"\n                        ACTIVE_ADDRESS=$(sui\
-        \ client active-address 2>/dev/null || echo \"\")\n                      \
-        \  if [ -z \"$ACTIVE_ADDRESS\" ] || [ \"$ACTIVE_ADDRESS\" = \"None\" ]; then\n\
-        \                            echo \"\u274C No active address found.\"\n  \
-        \                          echo \"Available addresses:\"\n               \
-        \             sui client addresses || echo \"No addresses available\"\n  \
-        \                          echo \"Please check your SUI_CONFIG and SUI_KEYSTORE\
-        \ secrets.\"\n                            exit 1\n                       \
-        \ else\n                            echo \"\u2705 Active address: $ACTIVE_ADDRESS\"\
-        \n                        fi\n                        \n                 \
-        \       # Check if we have gas before attempting deployment\n            \
-        \            echo \"Checking gas balance...\"\n                        if\
-        \ ! sui client gas; then\n                            echo \"\u274C Failed\
-        \ to check gas balance or no gas objects found.\"\n                      \
-        \      echo \"Please fund your address with devnet SUI tokens before deployment.\"\
-        \n                            echo \"You can get devnet tokens from: https://discord.com/channels/916379725201563759/971488439931392130\"\
+        \ \"3. Add SUI_ALIASES secret with your aliases file content\"\n         \
+        \                   echo \"4. Fund the wallet with devnet SUI tokens\"\n \
+        \                           exit 0\n                        fi\n         \
+        \               \n                        echo \"=== Pre-deployment Checks\
+        \ ===\"\n                        echo \"Current active environment:\"\n  \
+        \                      sui client active-env || {\n                      \
+        \      echo \"\u274C Failed to get active environment\"\n                \
+        \            exit 1\n                        }\n                        \n\
+        \                        echo \"Current active address:\"\n              \
+        \          ACTIVE_ADDRESS=$(sui client active-address 2>/dev/null || echo\
+        \ \"\")\n                        if [ -z \"$ACTIVE_ADDRESS\" ] || [ \"$ACTIVE_ADDRESS\"\
+        \ = \"None\" ]; then\n                            echo \"\u274C No active\
+        \ address found.\"\n                            echo \"Available addresses:\"\
+        \n                            sui client addresses || echo \"No addresses\
+        \ available\"\n                            echo \"Please check your SUI_CONFIG\
+        \ and SUI_KEYSTORE secrets.\"\n                            exit 1\n      \
+        \                  else\n                            echo \"\u2705 Active\
+        \ address: $ACTIVE_ADDRESS\"\n                        fi\n               \
+        \         \n                        # Check if we have gas before attempting\
+        \ deployment\n                        echo \"Checking gas balance...\"\n \
+        \                       if ! sui client gas; then\n                      \
+        \      echo \"\u274C Failed to check gas balance or no gas objects found.\"\
+        \n                            echo \"Please fund your address with devnet\
+        \ SUI tokens before deployment.\"\n                            echo \"You\
+        \ can get devnet tokens from: https://discord.com/channels/916379725201563759/971488439931392130\"\
         \n                            exit 1\n                        fi\n       \
         \                 \n                        echo \"=== Publishing Package\
         \ ===\"\n                        if sui client publish --gas-budget 100000000;\
@@ -168,6 +214,7 @@ jobs:
         SUI_NETWORK: devnet
         SUI_CONFIG: ${{ secrets.SUI_CONFIG }}
         SUI_KEYSTORE: ${{ secrets.SUI_KEYSTORE }}
+        SUI_ALIASES: ${{ secrets.SUI_ALIASES }}
       run: "\n                        # Verify sui command is available\n        \
         \                which sui || (echo \"Sui command not found in PATH\" && exit\
         \ 1)\n                        \n                        # Check if both SUI_CONFIG\
