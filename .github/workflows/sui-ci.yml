@@ -106,31 +106,32 @@ jobs:
         \ \n                            capture_output=True, text=True)\n        if\
         \ result.returncode == 0:\n            print(\"\u2705 Address command succeeded\"\
         )\n            addresses_output = result.stdout.strip()\n            if addresses_output\
-        \ and \"No managed addresses\" not in addresses_output:\n                print(f\"\
-        Available addresses:\n{addresses_output}\")\n            else:\n         \
-        \       print(\"No addresses found in output\")\n        else:\n         \
-        \   print(f\"\u274C Address command failed: {result.stderr}\")\n    except\
-        \ Exception as e:\n        print(f\"Error checking addresses: {e}\")\n   \
-        \ \n    # Try to get active address\n    try:\n        result = subprocess.run(['sui',\
-        \ 'client', 'active-address'],\n                            capture_output=True,\
-        \ text=True)\n        if result.returncode == 0:\n            active_address\
-        \ = result.stdout.strip()\n            if active_address and active_address\
-        \ != \"None\":\n                print(f\"\u2705 Active address: {active_address}\"\
-        )\n            else:\n                print(\"No active address set\")\n \
-        \       else:\n            print(f\"\u274C Failed to get active address: {result.stderr}\"\
-        )\n    except Exception as e:\n        print(f\"Error getting active address:\
-        \ {e}\")\n\nexcept Exception as e:\n    print(f\"\u274C Configuration setup\
-        \ failed: {e}\")\n    sys.exit(1)\nEOF\n                            \n   \
-        \                         # Verify setup\n                            echo\
-        \ \"=== Verification ===\"\n                            echo \"Active environment:\"\
-        \n                            sui client active-env || exit 1\n          \
-        \                  \n                            echo \"Available addresses:\"\
-        \n                            sui client addresses || exit 1\n           \
-        \                 \n                            echo \"Active address:\"\n\
-        \                            sui client active-address || exit 1\n       \
-        \                     \n                        else\n                   \
-        \         echo \"\u274C Required secrets missing\"\n                     \
-        \       exit 1\n                        fi\n                    "
+        \ and \"No managed addresses\" not in addresses_output:\n                print(\"\
+        Available addresses:\")\n                print(addresses_output)\n       \
+        \     else:\n                print(\"No addresses found in output\")\n   \
+        \     else:\n            print(f\"\u274C Address command failed: {result.stderr}\"\
+        )\n    except Exception as e:\n        print(f\"Error checking addresses:\
+        \ {e}\")\n    \n    # Try to get active address\n    try:\n        result\
+        \ = subprocess.run(['sui', 'client', 'active-address'],\n                \
+        \            capture_output=True, text=True)\n        if result.returncode\
+        \ == 0:\n            active_address = result.stdout.strip()\n            if\
+        \ active_address and active_address != \"None\":\n                print(f\"\
+        \u2705 Active address: {active_address}\")\n            else:\n          \
+        \      print(\"No active address set\")\n        else:\n            print(f\"\
+        \u274C Failed to get active address: {result.stderr}\")\n    except Exception\
+        \ as e:\n        print(f\"Error getting active address: {e}\")\n\nexcept Exception\
+        \ as e:\n    print(f\"\u274C Configuration setup failed: {e}\")\n    sys.exit(1)\n\
+        EOF\n                            \n                            # Verify setup\n\
+        \                            echo \"=== Verification ===\"\n             \
+        \               echo \"Active environment:\"\n                           \
+        \ sui client active-env || exit 1\n                            \n        \
+        \                    echo \"Available addresses:\"\n                     \
+        \       sui client addresses || exit 1\n                            \n   \
+        \                         echo \"Active address:\"\n                     \
+        \       sui client active-address || exit 1\n                            \n\
+        \                        else\n                            echo \"\u274C Required\
+        \ secrets missing\"\n                            exit 1\n                \
+        \        fi\n                    "
     - name: Deploy to devnet
       if: github.ref == 'refs/heads/main' && github.event_name == 'push'
       env:
