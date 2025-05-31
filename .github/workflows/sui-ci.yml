@@ -54,42 +54,50 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-    - name: Install Rust
-      uses: dtolnay/rust-toolchain@stable
-    - name: Install Sui CLI
+    - name: Install Homebrew
       run: "\n                        /bin/bash -c \"$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\"\
         \n                        echo 'eval \"$(/home/linuxbrew/.linuxbrew/bin/brew\
         \ shellenv)\"' >> /home/runner/.profile\n                        echo 'eval\
         \ \"$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)\"' >> /home/runner/.bashrc\n\
         \                        source /home/runner/.profile\n                  \
-        \      eval \"$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)\"\n        \
-        \                sudo apt-get update\n                        sudo apt-get\
-        \ install -y build-essential\n                        brew install gcc\n \
-        \                       eval \"$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)\"\
-        \n                        brew install sui\n                    "
-    - name: Download gas report
-      uses: actions/download-artifact@v4
-      with:
-        name: gas-report
-        path: gas-reports
-      continue-on-error: true
-    - name: Display gas report
-      if: ${{ success() }}
-      run: cat gas-reports/gas_report.txt || echo "No gas report found"
+        \  "
+    - name: Install Build Dependencies
+      run: "\n                        eval \"$(/home/linuxbrew/.linuxbrew/bin/brew\
+        \ shellenv)\"\n                        sudo apt-get update\n             \
+        \           sudo apt-get install -y build-essential\n                    \
+        \    brew install gcc\n                    "
+    - name: Install Sui CLI
+      run: "\n                        eval \"$(/home/linuxbrew/.linuxbrew/bin/brew\
+        \ shellenv)\"\n                        brew install sui\n                \
+        \    "
     - name: Setup Sui CLI config
-      run: mkdir -p ~/.sui/sui_config && echo "${{ secrets.SUI_CONFIG }}" > ~/.sui/sui_config/client.yaml
+      run: "\n                        eval \"$(/home/linuxbrew/.linuxbrew/bin/brew\
+        \ shellenv)\"\n                        if [ -n \"${{ secrets.SUI_CONFIG }}\"\
+        \ ]; then\n                            mkdir -p ~/.sui/sui_config\n      \
+        \                      echo \"${{ secrets.SUI_CONFIG }}\" > ~/.sui/sui_config/client.yaml\n\
+        \                        else\n                            echo \"Warning:\
+        \ SUI_CONFIG secret is not set\"\n                            sui client new-address\
+        \ ed25519\n                        fi\n                    "
     - name: Deploy to testnet
       env:
         SUI_NETWORK: testnet
         DEPLOYER_MNEMONIC: ${{ secrets.DEPLOYER_MNEMONIC }}
-      run: sui client switch --env testnet && sui client publish --gas-budget 100000000
+      run: "\n                        eval \"$(/home/linuxbrew/.linuxbrew/bin/brew\
+        \ shellenv)\"\n                        sui client switch --env testnet\n \
+        \                       sui client publish --gas-budget 100000000\n      \
+        \              "
     - name: Verify deployment
-      run: "\n                        # Get the latest transaction status\n      \
-        \                  LATEST_TX=$(sui client transactions | head -n 2 | tail\
-        \ -n 1 | awk '{print $1}')\n                        # Check transaction status\n\
-        \                        sui client transaction $LATEST_TX | grep -q \"Status\
-        \ : Success\"\n                        if [ $? -eq 0 ]; then\n           \
-        \                 echo \"\u2705 Deployment verified successfully\"\n     \
-        \                   else\n                            echo \"\u274C Deployment\
-        \ verification failed\"\n                            exit 1\n            \
-        \            fi\n                    "
+      run: "\n                        eval \"$(/home/linuxbrew/.linuxbrew/bin/brew\
+        \ shellenv)\"\n                        # Get the latest transaction status\n\
+        \                        LATEST_TX=$(sui client transactions | head -n 2 |\
+        \ tail -n 1 | awk '{print $1}')\n                        if [ -n \"$LATEST_TX\"\
+        \ ]; then\n                            # Check transaction status\n      \
+        \                      sui client transaction $LATEST_TX | grep -q \"Status\
+        \ : Success\"\n                            if [ $? -eq 0 ]; then\n       \
+        \                         echo \"\u2705 Deployment verified successfully\"\
+        \n                            else\n                                echo \"\
+        \u274C Deployment verification failed\"\n                                exit\
+        \ 1\n                            fi\n                        else\n      \
+        \                      echo \"\u274C No transaction found to verify\"\n  \
+        \                          exit 1\n                        fi\n          \
+        \          "
