@@ -37,11 +37,14 @@ jobs:
         \                       eval \"$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)\"\
         \n                        brew install sui\n                    "
     - name: Build Move modules
-      run: sui move build
+      run: "\n                        eval \"$(/home/linuxbrew/.linuxbrew/bin/brew\
+        \ shellenv)\"\n                        sui move build\n                  \
+        \  "
       working-directory: ${{ github.workspace }}
     - name: Run Move tests
       if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
-      run: sui move test
+      run: "\n                        eval \"$(/home/linuxbrew/.linuxbrew/bin/brew\
+        \ shellenv)\"\n                        sui move test\n                    "
       working-directory: ${{ github.workspace }}
   deploy:
     name: Deploy to Testnet
