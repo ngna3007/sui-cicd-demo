@@ -76,16 +76,35 @@ jobs:
         \ ]; then\n                            mkdir -p ~/.sui/sui_config\n      \
         \                      echo \"${{ secrets.SUI_CONFIG }}\" > ~/.sui/sui_config/client.yaml\n\
         \                        else\n                            echo \"Warning:\
-        \ SUI_CONFIG secret is not set\"\n                            sui client new-address\
-        \ ed25519\n                        fi\n                    "
+        \ SUI_CONFIG secret is not set. Creating default config...\"\n           \
+        \                 mkdir -p ~/.sui/sui_config\n                           \
+        \ cat > ~/.sui/sui_config/client.yaml << EOL\n                           \
+        \ ---\n                            keystore:\n                           \
+        \     File: ~/.sui/sui_config/sui.keystore\n                            envs:\n\
+        \                                testnet:\n                              \
+        \      url: \"https://fullnode.testnet.sui.io:443\"\n                    \
+        \                ws-url: \"wss://fullnode.testnet.sui.io:443\"\n         \
+        \                   active_env: testnet\n                            active_address:\
+        \ null\n                            EOL\n                            \n  \
+        \                          # Generate new keypair\n                      \
+        \      sui keytool generate ed25519 > ~/.sui/sui_config/sui.keystore\n   \
+        \                     fi\n                        \n                     \
+        \   # Display config for debugging\n                        echo \"Current\
+        \ Sui config:\"\n                        cat ~/.sui/sui_config/client.yaml\n\
+        \                    "
     - name: Deploy to testnet
       env:
         SUI_NETWORK: testnet
         DEPLOYER_MNEMONIC: ${{ secrets.DEPLOYER_MNEMONIC }}
       run: "\n                        eval \"$(/home/linuxbrew/.linuxbrew/bin/brew\
-        \ shellenv)\"\n                        sui client switch --env testnet\n \
-        \                       sui client publish --gas-budget 100000000\n      \
-        \              "
+        \ shellenv)\"\n                        # Set active environment\n        \
+        \                sui client switch --env testnet\n                       \
+        \ \n                        # Show current address for debugging\n       \
+        \                 sui client active-address\n                        \n  \
+        \                      # Publish package\n                        sui client\
+        \ publish --gas-budget 100000000 || {\n                            echo \"\
+        \u274C Deployment failed\"\n                            exit 1\n         \
+        \               }\n                    "
     - name: Verify deployment
       run: "\n                        eval \"$(/home/linuxbrew/.linuxbrew/bin/brew\
         \ shellenv)\"\n                        # Get the latest transaction status\n\
