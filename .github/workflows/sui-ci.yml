@@ -24,28 +24,40 @@ jobs:
         - stable
     steps:
     - name: Checkout code
-      uses: actions/checkout@v3.5.3
+      uses: actions/checkout@v4
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+    - name: Cache Rust dependencies
+      uses: actions/cache@v3
+      with:
+        path: '~/.cargo
+
+          ~/.cargo/registry
+
+          ~/.cargo/git
+
+          target'
+        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: ${{ runner.os }}-cargo-
     - name: Install Sui CLI
-      run: "\n                        /bin/bash -c \"$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\"\
-        \n                        echo 'eval \"$(/home/linuxbrew/.linuxbrew/bin/brew\
-        \ shellenv)\"' >> /home/runner/.profile\n                        echo 'eval\
-        \ \"$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)\"' >> /home/runner/.bashrc\n\
-        \                        source /home/runner/.profile\n                  \
-        \      eval \"$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)\"\n        \
-        \                sudo apt-get update\n                        sudo apt-get\
-        \ install -y build-essential\n                        brew install gcc\n \
-        \                       eval \"$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)\"\
-        \n                        brew install sui\n                    "
+      run: cargo install --locked --git https://github.com/MystenLabs/sui.git --branch
+        ${{ env.SUI_BRANCH || 'devnet' }} sui
     - name: Build Move modules
-      run: "\n                        eval \"$(/home/linuxbrew/.linuxbrew/bin/brew\
-        \ shellenv)\"\n                        sui move build\n                  \
-        \  "
+      run: sui move build
       working-directory: ${{ github.workspace }}
     - name: Run Move tests
       if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
-      run: "\n                        eval \"$(/home/linuxbrew/.linuxbrew/bin/brew\
-        \ shellenv)\"\n                        sui move test\n                    "
+      run: sui move test
       working-directory: ${{ github.workspace }}
+    - name: Gas profiling
+      run: sui move test --gas-status > gas_report.txt && echo "Gas profiling results
+        saved to gas_report.txt"
+    - name: Upload gas report
+      uses: actions/upload-artifact@v3
+      with:
+        name: gas-report
+        path: gas_report.txt
+        retention-days: 5
   deploy:
     name: Deploy to Testnet
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
@@ -78,20 +90,19 @@ jobs:
         \                        else\n                            echo \"Warning:\
         \ SUI_CONFIG secret is not set. Creating default config...\"\n           \
         \                 mkdir -p ~/.sui/sui_config\n                           \
-        \ cat > ~/.sui/sui_config/client.yaml << EOL\n                           \
-        \ ---\n                            keystore:\n                           \
-        \     File: ~/.sui/sui_config/sui.keystore\n                            envs:\n\
-        \                                testnet:\n                              \
-        \      url: \"https://fullnode.testnet.sui.io:443\"\n                    \
-        \                ws-url: \"wss://fullnode.testnet.sui.io:443\"\n         \
-        \                   active_env: testnet\n                            active_address:\
-        \ null\n                            EOL\n                            \n  \
-        \                          # Generate new keypair\n                      \
-        \      sui keytool generate ed25519 > ~/.sui/sui_config/sui.keystore\n   \
-        \                     fi\n                        \n                     \
-        \   # Display config for debugging\n                        echo \"Current\
-        \ Sui config:\"\n                        cat ~/.sui/sui_config/client.yaml\n\
-        \                    "
+        \ cat > ~/.sui/sui_config/client.yaml << 'EOF'\n                        ---\n\
+        \                        keystore:\n                            File: ~/.sui/sui_config/sui.keystore\n\
+        \                        envs:\n                            testnet:\n   \
+        \                             url: \"https://fullnode.testnet.sui.io:443\"\
+        \n                                ws-url: \"wss://fullnode.testnet.sui.io:443\"\
+        \n                        active_env: testnet\n                        active_address:\
+        \ null\n                        EOF\n                            \n      \
+        \                      # Generate new keypair\n                          \
+        \  sui keytool generate ed25519 > ~/.sui/sui_config/sui.keystore\n       \
+        \                 fi\n                        \n                        #\
+        \ Display config for debugging\n                        echo \"Current Sui\
+        \ config:\"\n                        cat ~/.sui/sui_config/client.yaml\n \
+        \                   "
     - name: Deploy to testnet
       env:
         SUI_NETWORK: testnet
