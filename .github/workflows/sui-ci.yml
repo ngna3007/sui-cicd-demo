@@ -69,56 +69,103 @@ jobs:
         \ 1)\n                        sui --version\n                        \n  \
         \                      # Create config directory\n                       \
         \ mkdir -p ~/.sui/sui_config\n                        \n                 \
-        \       if [ -n \"$SUI_CONFIG\" ] && [ -n \"$SUI_KEYSTORE\" ]; then\n    \
-        \                        # Write config file\n                           \
-        \ echo \"$SUI_CONFIG\" > ~/.sui/sui_config/client.yaml\n                 \
-        \           echo \"\u2705 Using provided SUI_CONFIG\"\n                  \
-        \          \n                            # Write keystore file\n         \
-        \                   echo \"$SUI_KEYSTORE\" > ~/.sui/sui_config/sui.keystore\n\
-        \                            echo \"\u2705 Using provided SUI_KEYSTORE\"\n\
-        \                            \n                            # Set proper permissions\
+        \       echo \"Setting up Sui configuration...\"\n                       \
+        \ echo \"SUI_CONFIG secret present: $([ -n \"$SUI_CONFIG\" ] && echo \"YES\"\
+        \ || echo \"NO\")\"\n                        echo \"SUI_KEYSTORE secret present:\
+        \ $([ -n \"$SUI_KEYSTORE\" ] && echo \"YES\" || echo \"NO\")\"\n         \
+        \               \n                        if [ -n \"$SUI_CONFIG\" ] && [ -n\
+        \ \"$SUI_KEYSTORE\" ]; then\n                            # Write config file\n\
+        \                            echo \"$SUI_CONFIG\" > ~/.sui/sui_config/client.yaml\n\
+        \                            echo \"\u2705 Written SUI_CONFIG to client.yaml\"\
+        \n                            \n                            # Write keystore\
+        \ file\n                            echo \"$SUI_KEYSTORE\" > ~/.sui/sui_config/sui.keystore\n\
+        \                            echo \"\u2705 Written SUI_KEYSTORE to sui.keystore\"\
+        \n                            \n                            # Set proper permissions\
         \ on keystore\n                            chmod 600 ~/.sui/sui_config/sui.keystore\n\
-        \                            \n                        else\n            \
-        \                echo \"Warning: SUI_CONFIG or SUI_KEYSTORE secret is not\
-        \ set. Skipping deployment setup...\"\n                            echo \"\
-        \u26A0\uFE0F  To enable deployment:\"\n                            echo \"\
-        1. Add SUI_CONFIG secret with your wallet configuration\"\n              \
-        \              echo \"2. Add SUI_KEYSTORE secret with your keystore file content\"\
-        \n                            \n                            # Create minimal\
-        \ config for reference\n                            echo \"---\" > ~/.sui/sui_config/client.yaml\n\
-        \                            echo \"keystore:\" >> ~/.sui/sui_config/client.yaml\n\
-        \                            echo \"    File: ~/.sui/sui_config/sui.keystore\"\
-        \ >> ~/.sui/sui_config/client.yaml\n                            echo \"envs:\"\
-        \ >> ~/.sui/sui_config/client.yaml\n                            echo \"  \
-        \  testnet:\" >> ~/.sui/sui_config/client.yaml\n                         \
-        \   echo '        url: \"https://fullnode.testnet.sui.io:443\"' >> ~/.sui/sui_config/client.yaml\n\
-        \                            echo '        ws-url: \"wss://fullnode.testnet.sui.io:443\"\
-        ' >> ~/.sui/sui_config/client.yaml\n                            echo \"active_env:\
-        \ testnet\" >> ~/.sui/sui_config/client.yaml\n                           \
-        \ echo \"active_address: null\" >> ~/.sui/sui_config/client.yaml\n       \
-        \                     \n                            # Create empty keystore\n\
-        \                            echo \"[]\" > ~/.sui/sui_config/sui.keystore\n\
-        \                            chmod 600 ~/.sui/sui_config/sui.keystore\n  \
-        \                          \n                            echo \"\u2705 Created\
-        \ minimal config file\"\n                        fi\n                    \
-        \    \n                        # Display config for debugging (without sensitive\
-        \ data)\n                        echo \"Current Sui config:\"\n          \
-        \              if [ -f ~/.sui/sui_config/client.yaml ]; then\n           \
-        \                 echo \"Config file exists:\"\n                         \
-        \   grep -E 'active_address|rpc:|ws:|active_env:' ~/.sui/sui_config/client.yaml\
-        \ || echo \"No matching config lines found\"\n                        else\n\
-        \                            echo \"\u274C Config file not found\"\n     \
-        \                   fi\n                        \n                       \
-        \ # Check if keystore exists and has content\n                        if [\
-        \ -f ~/.sui/sui_config/sui.keystore ]; then\n                            KEYSTORE_SIZE=$(wc\
-        \ -c < ~/.sui/sui_config/sui.keystore)\n                            echo \"\
-        Keystore file exists (${KEYSTORE_SIZE} bytes)\"\n                        else\n\
-        \                            echo \"\u274C Keystore file not found\"\n   \
-        \                     fi\n                    "
+        \                            \n                            # Debug: Show file\
+        \ sizes and structure\n                            echo \"Config file size:\
+        \ $(wc -c < ~/.sui/sui_config/client.yaml) bytes\"\n                     \
+        \       echo \"Keystore file size: $(wc -c < ~/.sui/sui_config/sui.keystore)\
+        \ bytes\"\n                            \n                            # Show\
+        \ config structure (without sensitive data)\n                            echo\
+        \ \"=== Config File Structure ===\"\n                            grep -E 'active_env:|active_address:|alias:|rpc:'\
+        \ ~/.sui/sui_config/client.yaml || echo \"No config structure found\"\n  \
+        \                          \n                            # Test if keystore\
+        \ is valid JSON\n                            echo \"=== Keystore Validation\
+        \ ===\"\n                            if python3 -m json.tool ~/.sui/sui_config/sui.keystore\
+        \ > /dev/null 2>&1; then\n                                echo \"\u2705 Keystore\
+        \ is valid JSON\"\n                                echo \"Number of keys in\
+        \ keystore: $(python3 -c 'import json; print(len(json.load(open(\"~/.sui/sui_config/sui.keystore\"\
+        .replace(\"~\", \"/home/runner\"))))' 2>/dev/null || echo \"unknown\")\"\n\
+        \                            else\n                                echo \"\
+        \u274C Keystore is not valid JSON\"\n                                echo\
+        \ \"First 100 chars of keystore:\"\n                                head -c\
+        \ 100 ~/.sui/sui_config/sui.keystore\n                            fi\n   \
+        \                         \n                        else\n               \
+        \             echo \"\u274C SUI_CONFIG or SUI_KEYSTORE secret is missing\"\
+        \n                            echo \"Skipping deployment setup...\"\n    \
+        \                        exit 0\n                        fi\n            \
+        \            \n                        # Test sui client commands\n      \
+        \                  echo \"=== Testing Sui Client ===\"\n                 \
+        \       echo \"Active environment:\"\n                        sui client active-env\
+        \ || echo \"\u274C Failed to get active environment\"\n                  \
+        \      \n                        echo \"Available addresses:\"\n         \
+        \               sui client addresses || echo \"\u274C Failed to list addresses\"\
+        \n                        \n                        echo \"Active address:\"\
+        \n                        sui client active-address || echo \"\u274C Failed\
+        \ to get active address\"\n                    "
+    - name: Deploy to devnet
+      if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+      env:
+        SUI_NETWORK: devnet
+        SUI_CONFIG: ${{ secrets.SUI_CONFIG }}
+        SUI_KEYSTORE: ${{ secrets.SUI_KEYSTORE }}
+      run: "\n                        # Verify sui command is available\n        \
+        \                which sui || (echo \"Sui command not found in PATH\" && exit\
+        \ 1)\n                        \n                        # Check if both SUI_CONFIG\
+        \ and SUI_KEYSTORE are provided\n                        if [ -z \"$SUI_CONFIG\"\
+        \ ] || [ -z \"$SUI_KEYSTORE\" ]; then\n                            echo \"\
+        \u26A0\uFE0F  Deployment skipped: SUI_CONFIG or SUI_KEYSTORE secret is not\
+        \ configured\"\n                            echo \"To enable deployment:\"\
+        \n                            echo \"1. Add SUI_CONFIG secret with your wallet\
+        \ configuration\"\n                            echo \"2. Add SUI_KEYSTORE\
+        \ secret with your keystore file content\"\n                            echo\
+        \ \"3. Fund the wallet with devnet SUI tokens\"\n                        \
+        \    exit 0\n                        fi\n                        \n      \
+        \                  echo \"=== Pre-deployment Checks ===\"\n              \
+        \          echo \"Current active environment:\"\n                        sui\
+        \ client active-env || {\n                            echo \"\u274C Failed\
+        \ to get active environment\"\n                            exit 1\n      \
+        \                  }\n                        \n                        echo\
+        \ \"Current active address:\"\n                        ACTIVE_ADDRESS=$(sui\
+        \ client active-address 2>/dev/null || echo \"\")\n                      \
+        \  if [ -z \"$ACTIVE_ADDRESS\" ] || [ \"$ACTIVE_ADDRESS\" = \"None\" ]; then\n\
+        \                            echo \"\u274C No active address found.\"\n  \
+        \                          echo \"Available addresses:\"\n               \
+        \             sui client addresses || echo \"No addresses available\"\n  \
+        \                          echo \"Please check your SUI_CONFIG and SUI_KEYSTORE\
+        \ secrets.\"\n                            exit 1\n                       \
+        \ else\n                            echo \"\u2705 Active address: $ACTIVE_ADDRESS\"\
+        \n                        fi\n                        \n                 \
+        \       # Check if we have gas before attempting deployment\n            \
+        \            echo \"Checking gas balance...\"\n                        if\
+        \ ! sui client gas; then\n                            echo \"\u274C Failed\
+        \ to check gas balance or no gas objects found.\"\n                      \
+        \      echo \"Please fund your address with devnet SUI tokens before deployment.\"\
+        \n                            echo \"You can get devnet tokens from: https://discord.com/channels/916379725201563759/971488439931392130\"\
+        \n                            exit 1\n                        fi\n       \
+        \                 \n                        echo \"=== Publishing Package\
+        \ ===\"\n                        if sui client publish --gas-budget 100000000;\
+        \ then\n                            echo \"\u2705 Package published successfully\
+        \ to devnet\"\n                        else\n                            echo\
+        \ \"\u274C Deployment failed\"\n                            echo \"This might\
+        \ be due to insufficient gas, network issues, or compilation errors\"\n  \
+        \                          exit 1\n                        fi\n          \
+        \          "
     - name: Deploy to testnet
       if: github.ref == 'refs/heads/main' && github.event_name == 'push'
       env:
-        SUI_NETWORK: testnet
+        SUI_NETWORK: devnet
         SUI_CONFIG: ${{ secrets.SUI_CONFIG }}
         SUI_KEYSTORE: ${{ secrets.SUI_KEYSTORE }}
       run: "\n                        # Verify sui command is available\n        \
