@@ -11,9 +11,10 @@ name: Sui Smart Contract CI/CD
 env:
   RUST_BACKTRACE: '1'
   SUI_LOG_LEVEL: info
+  SUI_BRANCH: devnet
 jobs:
   build-and-test:
-    name: Setup Build Environment
+    name: Setup and Test
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -31,11 +32,26 @@ jobs:
         override: true
     - name: Install Sui CLI
       run: cargo install --locked --git https://github.com/MystenLabs/sui.git --branch
-        devnet sui
+        ${{ env.SUI_BRANCH || 'devnet' }} sui
+    - name: Build Move modules
+      run: sui move build
+      working-directory: ${{ github.workspace }}
+    - name: Run Move tests
+      if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
+      run: sui move test
+      working-directory: ${{ github.workspace }}
+    - name: Gas profiling
+      run: sui move test --gas-status > gas_report.txt && echo "Gas profiling results
+        saved to gas_report.txt"
+    - name: Upload gas report
+      uses: actions/upload-artifact@v3
+      with:
+        name: gas-report
+        path: gas_report.txt
   deploy:
     name: Deploy to Testnet
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    needs: Build and Test
+    needs: build-and-test
     runs-on: ubuntu-latest
     steps:
     - name: Setup Sui CLI config
@@ -45,3 +61,13 @@ jobs:
         SUI_NETWORK: testnet
         DEPLOYER_MNEMONIC: ${{ secrets.DEPLOYER_MNEMONIC }}
       run: sui client switch --env testnet && sui move build --install
+    - name: Verify deployment
+      run: "\n                        # Get the latest transaction status\n      \
+        \                  LATEST_TX=$(sui client transactions | head -n 2 | tail\
+        \ -n 1 | awk '{print $1}')\n                        # Check transaction status\n\
+        \                        sui client transaction $LATEST_TX | grep -q \"Status\
+        \ : Success\"\n                        if [ $? -eq 0 ]; then\n           \
+        \                 echo \"\u2705 Deployment verified successfully\"\n     \
+        \                   else\n                            echo \"\u274C Deployment\
+        \ verification failed\"\n                            exit 1\n            \
+        \            fi\n                    "
