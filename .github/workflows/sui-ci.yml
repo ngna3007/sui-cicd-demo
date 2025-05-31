@@ -61,20 +61,31 @@ jobs:
       working-directory: ${{ github.workspace }}
     - name: Setup Sui CLI config
       if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+      env:
+        SUI_CONFIG: ${{ secrets.SUI_CONFIG }}
+        SUI_KEYSTORE: ${{ secrets.SUI_KEYSTORE }}
       run: "\n                        # Verify sui command is available\n        \
         \                which sui || (echo \"Sui command not found in PATH\" && exit\
         \ 1)\n                        sui --version\n                        \n  \
         \                      # Create config directory\n                       \
         \ mkdir -p ~/.sui/sui_config\n                        \n                 \
-        \       if [ -n \"${{ secrets.SUI_CONFIG }}\" ]; then\n                  \
-        \          echo \"${{ secrets.SUI_CONFIG }}\" > ~/.sui/sui_config/client.yaml\n\
-        \                            echo \"\u2705 Using provided SUI_CONFIG\"\n \
-        \                       else\n                            echo \"Warning:\
-        \ SUI_CONFIG secret is not set. Skipping deployment setup...\"\n         \
-        \                   echo \"\u26A0\uFE0F  To enable deployment, add SUI_CONFIG\
-        \ secret with your wallet configuration\"\n                            \n\
-        \                            # Create a minimal config file for reference\n\
-        \                            echo \"---\" > ~/.sui/sui_config/client.yaml\n\
+        \       if [ -n \"$SUI_CONFIG\" ] && [ -n \"$SUI_KEYSTORE\" ]; then\n    \
+        \                        # Write config file\n                           \
+        \ echo \"$SUI_CONFIG\" > ~/.sui/sui_config/client.yaml\n                 \
+        \           echo \"\u2705 Using provided SUI_CONFIG\"\n                  \
+        \          \n                            # Write keystore file\n         \
+        \                   echo \"$SUI_KEYSTORE\" > ~/.sui/sui_config/sui.keystore\n\
+        \                            echo \"\u2705 Using provided SUI_KEYSTORE\"\n\
+        \                            \n                            # Set proper permissions\
+        \ on keystore\n                            chmod 600 ~/.sui/sui_config/sui.keystore\n\
+        \                            \n                        else\n            \
+        \                echo \"Warning: SUI_CONFIG or SUI_KEYSTORE secret is not\
+        \ set. Skipping deployment setup...\"\n                            echo \"\
+        \u26A0\uFE0F  To enable deployment:\"\n                            echo \"\
+        1. Add SUI_CONFIG secret with your wallet configuration\"\n              \
+        \              echo \"2. Add SUI_KEYSTORE secret with your keystore file content\"\
+        \n                            \n                            # Create minimal\
+        \ config for reference\n                            echo \"---\" > ~/.sui/sui_config/client.yaml\n\
         \                            echo \"keystore:\" >> ~/.sui/sui_config/client.yaml\n\
         \                            echo \"    File: ~/.sui/sui_config/sui.keystore\"\
         \ >> ~/.sui/sui_config/client.yaml\n                            echo \"envs:\"\
@@ -86,52 +97,60 @@ jobs:
         \ testnet\" >> ~/.sui/sui_config/client.yaml\n                           \
         \ echo \"active_address: null\" >> ~/.sui/sui_config/client.yaml\n       \
         \                     \n                            # Create empty keystore\n\
-        \                            touch ~/.sui/sui_config/sui.keystore\n      \
-        \                      \n                            echo \"\u2705 Created\
+        \                            echo \"[]\" > ~/.sui/sui_config/sui.keystore\n\
+        \                            chmod 600 ~/.sui/sui_config/sui.keystore\n  \
+        \                          \n                            echo \"\u2705 Created\
         \ minimal config file\"\n                        fi\n                    \
-        \    \n                        # Display config for debugging\n          \
-        \              echo \"Current Sui config:\"\n                        if [\
-        \ -f ~/.sui/sui_config/client.yaml ]; then\n                            echo\
-        \ \"Config file exists:\"\n                            grep -E 'active_address|url:|ws-url:|active_env:'\
-        \ ~/.sui/sui_config/client.yaml || echo \"No matching config lines found\"\
-        \n                        else\n                            echo \"\u274C\
-        \ Config file not found\"\n                        fi\n                  \
-        \  "
+        \    \n                        # Display config for debugging (without sensitive\
+        \ data)\n                        echo \"Current Sui config:\"\n          \
+        \              if [ -f ~/.sui/sui_config/client.yaml ]; then\n           \
+        \                 echo \"Config file exists:\"\n                         \
+        \   grep -E 'active_address|rpc:|ws:|active_env:' ~/.sui/sui_config/client.yaml\
+        \ || echo \"No matching config lines found\"\n                        else\n\
+        \                            echo \"\u274C Config file not found\"\n     \
+        \                   fi\n                        \n                       \
+        \ # Check if keystore exists and has content\n                        if [\
+        \ -f ~/.sui/sui_config/sui.keystore ]; then\n                            KEYSTORE_SIZE=$(wc\
+        \ -c < ~/.sui/sui_config/sui.keystore)\n                            echo \"\
+        Keystore file exists (${KEYSTORE_SIZE} bytes)\"\n                        else\n\
+        \                            echo \"\u274C Keystore file not found\"\n   \
+        \                     fi\n                    "
     - name: Deploy to testnet
       if: github.ref == 'refs/heads/main' && github.event_name == 'push'
       env:
         SUI_NETWORK: testnet
-        DEPLOYER_MNEMONIC: ${{ secrets.DEPLOYER_MNEMONIC }}
         SUI_CONFIG: ${{ secrets.SUI_CONFIG }}
+        SUI_KEYSTORE: ${{ secrets.SUI_KEYSTORE }}
       run: "\n                        # Verify sui command is available\n        \
         \                which sui || (echo \"Sui command not found in PATH\" && exit\
-        \ 1)\n                        \n                        # Check if SUI_CONFIG\
-        \ is provided\n                        if [ -z \"$SUI_CONFIG\" ]; then\n \
-        \                           echo \"\u26A0\uFE0F  Deployment skipped: SUI_CONFIG\
-        \ secret is not configured\"\n                            echo \"To enable\
-        \ deployment:\"\n                            echo \"1. Create a Sui wallet\"\
-        \n                            echo \"2. Export the wallet config\"\n     \
-        \                       echo \"3. Add it as SUI_CONFIG secret in GitHub repository\
-        \ settings\"\n                            echo \"4. Fund the wallet with testnet\
-        \ SUI tokens\"\n                            exit 0\n                     \
-        \   fi\n                        \n                        echo \"Current active\
-        \ address:\"\n                        sui client active-address || {\n   \
-        \                         echo \"\u274C No active address found. Please check\
-        \ your SUI_CONFIG secret.\"\n                            exit 1\n        \
-        \                }\n                        \n                        # Check\
-        \ if we have gas before attempting deployment\n                        echo\
-        \ \"Checking gas balance...\"\n                        sui client gas || {\n\
-        \                            echo \"\u274C Failed to check gas balance. Address\
-        \ may not be funded.\"\n                            echo \"Please fund your\
-        \ address with testnet SUI tokens before deployment.\"\n                 \
-        \           exit 1\n                        }\n                        \n\
-        \                        echo \"Publishing package...\"\n                \
-        \        if sui client publish --gas-budget 100000000; then\n            \
-        \                echo \"\u2705 Package published successfully\"\n        \
-        \                else\n                            echo \"\u274C Deployment\
-        \ failed\"\n                            echo \"This might be due to insufficient\
-        \ gas or network issues\"\n                            exit 1\n          \
-        \              fi\n                    "
+        \ 1)\n                        \n                        # Check if both SUI_CONFIG\
+        \ and SUI_KEYSTORE are provided\n                        if [ -z \"$SUI_CONFIG\"\
+        \ ] || [ -z \"$SUI_KEYSTORE\" ]; then\n                            echo \"\
+        \u26A0\uFE0F  Deployment skipped: SUI_CONFIG or SUI_KEYSTORE secret is not\
+        \ configured\"\n                            echo \"To enable deployment:\"\
+        \n                            echo \"1. Add SUI_CONFIG secret with your wallet\
+        \ configuration\"\n                            echo \"2. Add SUI_KEYSTORE\
+        \ secret with your keystore file content\"\n                            echo\
+        \ \"3. Fund the wallet with testnet SUI tokens\"\n                       \
+        \     exit 0\n                        fi\n                        \n     \
+        \                   echo \"Current active address:\"\n                   \
+        \     sui client active-address || {\n                            echo \"\u274C\
+        \ No active address found. Please check your SUI_CONFIG and SUI_KEYSTORE secrets.\"\
+        \n                            exit 1\n                        }\n        \
+        \                \n                        # Check if we have gas before attempting\
+        \ deployment\n                        echo \"Checking gas balance...\"\n \
+        \                       sui client gas || {\n                            echo\
+        \ \"\u274C Failed to check gas balance. Address may not be funded.\"\n   \
+        \                         echo \"Please fund your address with testnet SUI\
+        \ tokens before deployment.\"\n                            exit 1\n      \
+        \                  }\n                        \n                        echo\
+        \ \"Publishing package...\"\n                        if sui client publish\
+        \ --gas-budget 100000000; then\n                            echo \"\u2705\
+        \ Package published successfully\"\n                        else\n       \
+        \                     echo \"\u274C Deployment failed\"\n                \
+        \            echo \"This might be due to insufficient gas or network issues\"\
+        \n                            exit 1\n                        fi\n       \
+        \             "
     - name: Verify deployment
       if: github.ref == 'refs/heads/main' && github.event_name == 'push'
       env:
