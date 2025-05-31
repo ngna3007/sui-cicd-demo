@@ -67,146 +67,85 @@ jobs:
         SUI_ALIASES: ${{ secrets.SUI_ALIASES }}
       run: "\n                        # Verify sui command is available\n        \
         \                which sui || (echo \"Sui command not found in PATH\" && exit\
-        \ 1)\n                        sui --version\n                        \n  \
-        \                      # Create config directory\n                       \
-        \ mkdir -p ~/.sui/sui_config\n                        \n                 \
-        \       echo \"Setting up Sui configuration...\"\n                       \
-        \ echo \"SUI_CONFIG secret present: $([ -n \"$SUI_CONFIG\" ] && echo \"YES\"\
-        \ || echo \"NO\")\"\n                        echo \"SUI_KEYSTORE secret present:\
-        \ $([ -n \"$SUI_KEYSTORE\" ] && echo \"YES\" || echo \"NO\")\"\n         \
-        \               echo \"SUI_ALIASES secret present: $([ -n \"$SUI_ALIASES\"\
-        \ ] && echo \"YES\" || echo \"NO\")\"\n                        \n        \
-        \                if [ -n \"$SUI_CONFIG\" ] && [ -n \"$SUI_KEYSTORE\" ]; then\n\
-        \                            # Write config file\n                       \
-        \     echo \"$SUI_CONFIG\" > ~/.sui/sui_config/client.yaml\n             \
-        \               echo \"\u2705 Written SUI_CONFIG to client.yaml\"\n      \
-        \                      \n                            # Handle keystore - detect\
-        \ format and convert if needed\n                            echo \"=== Setting\
-        \ up Keystore ===\"\n                            echo \"$SUI_KEYSTORE\" >\
-        \ ~/.sui/sui_config/sui.keystore.temp\n                            \n    \
-        \                        # Check if keystore is already in new format (array\
-        \ of objects)\n                            if python3 -c \"\nimport json\n\
-        import sys\ntry:\n    with open('/home/runner/.sui/sui_config/sui.keystore.temp',\
-        \ 'r') as f:\n        data = json.load(f)\n    if isinstance(data, list) and\
-        \ len(data) > 0 and isinstance(data[0], dict) and 'alias' in data[0]:\n  \
-        \      print('NEW_FORMAT')\n        sys.exit(0)\n    else:\n        print('OLD_FORMAT')\n\
-        \        sys.exit(1)\nexcept:\n    print('INVALID_FORMAT')\n    sys.exit(2)\n\
-        \" 2>/dev/null; then\n                                echo \"\u2705 Keystore\
-        \ is already in new format\"\n                                cp ~/.sui/sui_config/sui.keystore.temp\
-        \ ~/.sui/sui_config/sui.keystore\n                            else\n     \
-        \                           echo \"\U0001F504 Converting keystore from old\
-        \ format\"\n                                \n                           \
-        \     # Handle aliases if provided\n                                if [ -n\
-        \ \"$SUI_ALIASES\" ]; then\n                                    echo \"$SUI_ALIASES\"\
-        \ > ~/.sui/sui_config/sui.aliases.temp\n                                fi\n\
-        \                                \n                                # Convert\
-        \ old keystore format to new format\n                                python3\
-        \ << 'EOF'\nimport json\nimport sys\n\ntry:\n    # Read old format keystore\n\
-        \    with open('/home/runner/.sui/sui_config/sui.keystore.temp', 'r') as f:\n\
-        \        old_keystore = json.load(f)\n    \n    # Read aliases if available\n\
-        \    aliases = []\n    try:\n        with open('/home/runner/.sui/sui_config/sui.aliases.temp',\
-        \ 'r') as f:\n            aliases = json.load(f)\n    except:\n        print(\"\
-        No aliases file found, will generate default aliases\")\n    \n    print(f\"\
-        Processing {len(old_keystore)} keys\")\n    \n    # Convert to new format\n\
-        \    new_keystore = []\n    for i, old_key in enumerate(old_keystore):\n \
-        \       # Get alias info if available\n        alias_info = aliases[i] if\
-        \ i < len(aliases) else {\"alias\": f\"key-{i+1}\"}\n        \n        if\
-        \ isinstance(old_key, dict) and 'alias' in old_key:\n            # Already\
-        \ in new format\n            print(f\"Key {i+1} already in new format: {old_key.get('alias',\
-        \ 'unknown')}\")\n            new_keystore.append(old_key)\n        else:\n\
-        \            # Convert from old format\n            alias = alias_info.get(\"\
-        alias\", f\"key-{i+1}\")\n            print(f\"Converting key {i+1}: {alias}\"\
-        )\n            \n            # Create new format entry\n            if isinstance(old_key,\
-        \ str):\n                # Old format: base64 string\n                new_entry\
-        \ = {\n                    \"alias\": alias,\n                    \"data\"\
-        : f\"suiprivkey1q{old_key}\",\n                    \"public_key\": alias_info.get(\"\
-        public_key_base64\", \"\")\n                }\n            else:\n       \
-        \         # Unknown format, try to handle gracefully\n                print(f\"\
-        Warning: Unknown key format for key {i+1}\")\n                new_entry =\
-        \ {\n                    \"alias\": alias,\n                    \"data\":\
-        \ str(old_key),\n                    \"public_key\": alias_info.get(\"public_key_base64\"\
-        , \"\")\n                }\n            \n            new_keystore.append(new_entry)\n\
-        \    \n    # Write new format keystore\n    with open('/home/runner/.sui/sui_config/sui.keystore',\
-        \ 'w') as f:\n        json.dump(new_keystore, f, indent=2)\n    \n    print(f\"\
-        \u2705 Successfully processed {len(new_keystore)} keys\")\n    \nexcept Exception\
-        \ as e:\n    print(f\"\u274C Keystore conversion failed: {e}\")\n    sys.exit(1)\n\
-        EOF\n                            fi\n                            \n      \
-        \                      # Set proper permissions\n                        \
-        \    chmod 600 ~/.sui/sui_config/sui.keystore\n                          \
-        \  chmod 600 ~/.sui/sui_config/client.yaml\n                            \n\
-        \                            # Clean up temporary files\n                \
-        \            rm -f ~/.sui/sui_config/sui.keystore.temp\n                 \
-        \           rm -f ~/.sui/sui_config/sui.aliases.temp\n                   \
-        \         \n                            echo \"\u2705 Keystore setup complete\"\
-        \n                            \n                            # Debug: Show\
-        \ file sizes and structure\n                            echo \"=== Configuration\
-        \ Debug Info ===\"\n                            echo \"Config file size: $(wc\
-        \ -c < ~/.sui/sui_config/client.yaml) bytes\"\n                          \
-        \  echo \"Keystore file size: $(wc -c < ~/.sui/sui_config/sui.keystore) bytes\"\
-        \n                            \n                            # Show config\
-        \ structure (without sensitive data)\n                            echo \"\
-        === Config File Structure ===\"\n                            grep -E 'active_env:|active_address:|alias:|rpc:'\
-        \ ~/.sui/sui_config/client.yaml || echo \"Config structure not found\"\n \
-        \                           \n                            # Validate keystore\
-        \ format\n                            echo \"=== Keystore Validation ===\"\
-        \n                            if python3 -c \"\nimport json\ntry:\n    with\
-        \ open('/home/runner/.sui/sui_config/sui.keystore') as f:\n        keys =\
-        \ json.load(f)\n    print(f'\u2705 Keystore is valid JSON with {len(keys)}\
-        \ keys')\n    for i, key in enumerate(keys):\n        alias = key.get('alias',\
-        \ 'unknown')\n        has_data = 'data' in key and bool(key['data'])\n   \
-        \     has_public_key = 'public_key' in key\n        print(f'Key {i+1}: alias={alias},\
-        \ has_data={has_data}, has_public_key={has_public_key}')\nexcept Exception\
-        \ as e:\n    print(f'\u274C Keystore validation failed: {e}')\n    exit(1)\n\
-        \"; then\n                                echo \"\u2705 Keystore validation\
-        \ passed\"\n                            else\n                           \
-        \     echo \"\u274C Keystore validation failed\"\n                       \
-        \         exit 1\n                            fi\n                       \
-        \     \n                        else\n                            echo \"\u274C\
-        \ Required secrets missing\"\n                            echo \"Need: SUI_CONFIG\
-        \ and SUI_KEYSTORE\"\n                            echo \"Please add these\
-        \ secrets to enable deployment\"\n                            exit 0\n   \
-        \                     fi\n                        \n                     \
-        \   # Initialize Sui client and create addresses from keystore\n         \
-        \               echo \"=== Initializing Sui Client ===\"\n               \
-        \         \n                        # First, check if we can access the client\n\
-        \                        sui client active-env || {\n                    \
-        \        echo \"\u274C Failed to access Sui client\"\n                   \
-        \         exit 1\n                        }\n                        \n  \
-        \                      # Import addresses from keystore if they don't exist\n\
-        \                        echo \"Checking and importing addresses...\"\n  \
-        \                      python3 << 'EOF'\nimport json\nimport subprocess\n\
-        import sys\n\ntry:\n    # Read keystore\n    with open('/home/runner/.sui/sui_config/sui.keystore')\
-        \ as f:\n        keys = json.load(f)\n    \n    print(f\"Found {len(keys)}\
-        \ keys in keystore\")\n    \n    # Check current addresses\n    try:\n   \
-        \     result = subprocess.run(['sui', 'client', 'addresses'], \n         \
-        \                     capture_output=True, text=True, check=True)\n      \
-        \  current_addresses = result.stdout.strip()\n        print(f\"Current addresses\
-        \ output: {current_addresses}\")\n    except subprocess.CalledProcessError\
-        \ as e:\n        print(f\"Could not list addresses: {e}\")\n        current_addresses\
-        \ = \"\"\n    \n    # If no addresses or error, try to set first key as active\n\
-        \    if \"No managed addresses\" in current_addresses or not current_addresses.strip():\n\
-        \        print(\"No managed addresses found, attempting to activate first\
-        \ key...\")\n        if keys:\n            first_alias = keys[0].get('alias',\
-        \ 'unknown')\n            print(f\"Trying to switch to address with alias:\
-        \ {first_alias}\")\n            \n            try:\n                # Try\
-        \ to switch to the address by alias\n                result = subprocess.run(['sui',\
-        \ 'client', 'switch', '--address', first_alias], \n                      \
-        \                capture_output=True, text=True)\n                if result.returncode\
-        \ == 0:\n                    print(f\"\u2705 Successfully switched to address:\
-        \ {first_alias}\")\n                else:\n                    print(f\"Could\
-        \ not switch to {first_alias}: {result.stderr}\")\n            except Exception\
-        \ as e:\n                print(f\"Error switching address: {e}\")\n    \n\
-        except Exception as e:\n    print(f\"\u274C Address import failed: {e}\")\n\
-        \    sys.exit(1)\nEOF\n                        \n                        #\
-        \ Final client test\n                        echo \"=== Final Client Test\
-        \ ===\"\n                        echo \"Active environment:\"\n          \
-        \              sui client active-env || echo \"\u274C Failed to get active\
-        \ environment\"\n                        \n                        echo \"\
-        Available addresses:\"\n                        sui client addresses || echo\
-        \ \"\u274C Failed to list addresses\"\n                        \n        \
-        \                echo \"Active address:\"\n                        sui client\
-        \ active-address || echo \"\u26A0\uFE0F No active address set\"\n        \
-        \            "
+        \ 1)\n                        \n                        # Create config directory\n\
+        \                        mkdir -p ~/.sui/sui_config\n                    \
+        \    \n                        echo \"Setting up Sui configuration...\"\n\
+        \                        echo \"SUI_CONFIG secret present: $([ -n \"$SUI_CONFIG\"\
+        \ ] && echo \"YES\" || echo \"NO\")\"\n                        echo \"SUI_KEYSTORE\
+        \ secret present: $([ -n \"$SUI_KEYSTORE\" ] && echo \"YES\" || echo \"NO\"\
+        )\"\n                        echo \"SUI_ALIASES secret present: $([ -n \"\
+        $SUI_ALIASES\" ] && echo \"YES\" || echo \"NO\")\"\n                     \
+        \   \n                        if [ -n \"$SUI_CONFIG\" ] && [ -n \"$SUI_KEYSTORE\"\
+        \ ] && [ -n \"$SUI_ALIASES\" ]; then\n                            # Write\
+        \ config file\n                            echo \"$SUI_CONFIG\" > ~/.sui/sui_config/client.yaml\n\
+        \                            echo \"\u2705 Written SUI_CONFIG to client.yaml\"\
+        \n                            \n                            # Write keystore\
+        \ file\n                            echo \"$SUI_KEYSTORE\" > ~/.sui/sui_config/sui.keystore\n\
+        \                            echo \"\u2705 Written SUI_KEYSTORE\"\n      \
+        \                      \n                            # Write aliases file\n\
+        \                            echo \"$SUI_ALIASES\" > ~/.sui/sui_config/sui.aliases\n\
+        \                            echo \"\u2705 Written SUI_ALIASES\"\n       \
+        \                     \n                            # Set proper permissions\n\
+        \                            chmod 600 ~/.sui/sui_config/*\n             \
+        \               \n                            # Initialize addresses from\
+        \ keystore\n                            echo \"=== Initializing Addresses\
+        \ ===\"\n                            python3 << 'EOF'\n                import\
+        \ json\n                import subprocess\n                import sys\n\n\
+        \                try:\n                    # Read keystore\n             \
+        \       with open('/home/runner/.sui/sui_config/sui.keystore') as f:\n   \
+        \                     keys = json.load(f)\n                    \n        \
+        \            print(f\"Found {len(keys)} keys in keystore\")\n            \
+        \        \n                    # Get current addresses\n                 \
+        \   try:\n                        result = subprocess.run(['sui', 'client',\
+        \ 'addresses'], \n                                            capture_output=True,\
+        \ text=True)\n                        current_addresses = result.stdout\n\
+        \                    except Exception as e:\n                        print(f\"\
+        Error getting addresses: {e}\")\n                        current_addresses\
+        \ = \"\"\n                    \n                    # If no addresses, create\
+        \ them from keystore\n                    if \"No managed addresses\" in current_addresses\
+        \ or not current_addresses.strip():\n                        print(\"Creating\
+        \ addresses from keystore...\")\n                        for key in keys:\n\
+        \                            alias = key.get('alias', '')\n              \
+        \              pubkey = key.get('public_key', '')\n                      \
+        \      \n                            if pubkey:\n                        \
+        \        print(f\"Creating address for {alias}\")\n                      \
+        \          try:\n                                    subprocess.run(['sui',\
+        \ 'client', 'new-address', \n                                            \
+        \    '--alias', alias,\n                                                '--key',\
+        \ pubkey], \n                                                check=True)\n\
+        \                                except subprocess.CalledProcessError as e:\n\
+        \                                    print(f\"Error creating address: {e}\"\
+        )\n                    \n                    # Set first address as active\
+        \ if none is set\n                    result = subprocess.run(['sui', 'client',\
+        \ 'active-address'],\n                                        capture_output=True,\
+        \ text=True)\n                    active_address = result.stdout.strip()\n\
+        \                    \n                    if not active_address or active_address\
+        \ == \"None\":\n                        print(\"Setting first address as active...\"\
+        )\n                        try:\n                            # Get first address\n\
+        \                            result = subprocess.run(['sui', 'client', 'addresses'],\n\
+        \                                                capture_output=True, text=True)\n\
+        \                            addresses = [line.split()[0] for line in result.stdout.splitlines()\
+        \ \n                                        if line.startswith('0x')]\n  \
+        \                          \n                            if addresses:\n \
+        \                               subprocess.run(['sui', 'client', 'switch',\
+        \ '--address', addresses[0]],\n                                          \
+        \  check=True)\n                                print(f\"Set active address\
+        \ to: {addresses[0]}\")\n                        except Exception as e:\n\
+        \                            print(f\"Error setting active address: {e}\"\
+        )\n                            sys.exit(1)\n\n                except Exception\
+        \ as e:\n                    print(f\"\u274C Address initialization failed:\
+        \ {e}\")\n                    sys.exit(1)\n                EOF\n         \
+        \                   \n                            # Verify setup\n       \
+        \                     echo \"=== Verification ===\"\n                    \
+        \        echo \"Active environment:\"\n                            sui client\
+        \ active-env || exit 1\n                            \n                   \
+        \         echo \"Available addresses:\"\n                            sui client\
+        \ addresses || exit 1\n                            \n                    \
+        \        echo \"Active address:\"\n                            sui client\
+        \ active-address || exit 1\n                            \n               \
+        \         else\n                            echo \"\u274C Required secrets\
+        \ missing\"\n                            exit 1\n                        fi\n\
+        \                    "
     - name: Deploy to devnet
       if: github.ref == 'refs/heads/main' && github.event_name == 'push'
       env:
@@ -216,64 +155,93 @@ jobs:
         SUI_ALIASES: ${{ secrets.SUI_ALIASES }}
       run: "\n                        # Verify sui command is available\n        \
         \                which sui || (echo \"Sui command not found in PATH\" && exit\
-        \ 1)\n                        \n                        # Check if required\
+        \ 1)\n                        \n                        # Check if all required\
         \ secrets are provided\n                        if [ -z \"$SUI_CONFIG\" ]\
-        \ || [ -z \"$SUI_KEYSTORE\" ]; then\n                            echo \"\u26A0\
-        \uFE0F  Deployment skipped: Required secrets are not configured\"\n      \
-        \                      echo \"To enable deployment:\"\n                  \
-        \          echo \"1. Add SUI_CONFIG secret with your wallet configuration\"\
-        \n                            echo \"2. Add SUI_KEYSTORE secret with your\
-        \ keystore file content\"\n                            echo \"3. Fund the\
-        \ wallet with devnet SUI tokens\"\n                            exit 0\n  \
-        \                      fi\n                        \n                    \
-        \    echo \"=== Pre-deployment Checks ===\"\n                        echo\
-        \ \"Current active environment:\"\n                        sui client active-env\
-        \ || {\n                            echo \"\u274C Failed to get active environment\"\
+        \ || [ -z \"$SUI_KEYSTORE\" ] || [ -z \"$SUI_ALIASES\" ]; then\n         \
+        \                   echo \"\u26A0\uFE0F  Deployment skipped: Required secrets\
+        \ are not configured\"\n                            echo \"To enable deployment:\"\
+        \n                            echo \"1. Add SUI_CONFIG secret with your wallet\
+        \ configuration\"\n                            echo \"2. Add SUI_KEYSTORE\
+        \ secret with your keystore file content\"\n                            echo\
+        \ \"3. Add SUI_ALIASES secret with your aliases file content\"\n         \
+        \                   echo \"4. Fund the wallet with devnet SUI tokens\"\n \
+        \                           exit 0\n                        fi\n         \
+        \               \n                        echo \"=== Pre-deployment Checks\
+        \ ===\"\n                        echo \"Current active environment:\"\n  \
+        \                      sui client active-env || {\n                      \
+        \      echo \"\u274C Failed to get active environment\"\n                \
+        \            exit 1\n                        }\n                        \n\
+        \                        echo \"Current active address:\"\n              \
+        \          ACTIVE_ADDRESS=$(sui client active-address 2>/dev/null || echo\
+        \ \"\")\n                        if [ -z \"$ACTIVE_ADDRESS\" ] || [ \"$ACTIVE_ADDRESS\"\
+        \ = \"None\" ]; then\n                            echo \"\u274C No active\
+        \ address found.\"\n                            echo \"Available addresses:\"\
+        \n                            sui client addresses || echo \"No addresses\
+        \ available\"\n                            echo \"Please check your SUI_CONFIG\
+        \ and SUI_KEYSTORE secrets.\"\n                            exit 1\n      \
+        \                  else\n                            echo \"\u2705 Active\
+        \ address: $ACTIVE_ADDRESS\"\n                        fi\n               \
+        \         \n                        # Check if we have gas before attempting\
+        \ deployment\n                        echo \"Checking gas balance...\"\n \
+        \                       if ! sui client gas; then\n                      \
+        \      echo \"\u274C Failed to check gas balance or no gas objects found.\"\
+        \n                            echo \"Please fund your address with devnet\
+        \ SUI tokens before deployment.\"\n                            echo \"You\
+        \ can get devnet tokens from: https://discord.com/channels/916379725201563759/971488439931392130\"\
+        \n                            exit 1\n                        fi\n       \
+        \                 \n                        echo \"=== Publishing Package\
+        \ ===\"\n                        if sui client publish --gas-budget 100000000;\
+        \ then\n                            echo \"\u2705 Package published successfully\
+        \ to devnet\"\n                        else\n                            echo\
+        \ \"\u274C Deployment failed\"\n                            echo \"This might\
+        \ be due to insufficient gas, network issues, or compilation errors\"\n  \
+        \                          exit 1\n                        fi\n          \
+        \          "
+    - name: Request Test Tokens
+      if: failure() && github.ref == 'refs/heads/main'
+      run: "\n                        ACTIVE_ADDRESS=$(sui client active-address)\n\
+        \                        echo \"Requesting test tokens for $ACTIVE_ADDRESS\"\
+        \n                        curl -X POST https://faucet.devnet.sui.io/gas  \
+        \                           -H 'Content-Type: application/json'          \
+        \                   -d '{\"FixedAmountRequest\":{\"recipient\":\"$ACTIVE_ADDRESS\"\
+        }}'\n                    "
+    - name: Deploy to testnet
+      if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+      env:
+        SUI_NETWORK: devnet
+        SUI_CONFIG: ${{ secrets.SUI_CONFIG }}
+        SUI_KEYSTORE: ${{ secrets.SUI_KEYSTORE }}
+        SUI_ALIASES: ${{ secrets.SUI_ALIASES }}
+      run: "\n                        # Verify sui command is available\n        \
+        \                which sui || (echo \"Sui command not found in PATH\" && exit\
+        \ 1)\n                        \n                        # Check if both SUI_CONFIG\
+        \ and SUI_KEYSTORE are provided\n                        if [ -z \"$SUI_CONFIG\"\
+        \ ] || [ -z \"$SUI_KEYSTORE\" ]; then\n                            echo \"\
+        \u26A0\uFE0F  Deployment skipped: SUI_CONFIG or SUI_KEYSTORE secret is not\
+        \ configured\"\n                            echo \"To enable deployment:\"\
+        \n                            echo \"1. Add SUI_CONFIG secret with your wallet\
+        \ configuration\"\n                            echo \"2. Add SUI_KEYSTORE\
+        \ secret with your keystore file content\"\n                            echo\
+        \ \"3. Fund the wallet with testnet SUI tokens\"\n                       \
+        \     exit 0\n                        fi\n                        \n     \
+        \                   echo \"Current active address:\"\n                   \
+        \     sui client active-address || {\n                            echo \"\u274C\
+        \ No active address found. Please check your SUI_CONFIG and SUI_KEYSTORE secrets.\"\
         \n                            exit 1\n                        }\n        \
-        \                \n                        echo \"Available addresses:\"\n\
-        \                        sui client addresses || {\n                     \
-        \       echo \"\u274C No addresses available\"\n                         \
-        \   echo \"The keystore might not have been set up correctly\"\n         \
-        \                   exit 1\n                        }\n                  \
-        \      \n                        echo \"Current active address:\"\n      \
-        \                  ACTIVE_ADDRESS=$(sui client active-address 2>/dev/null\
-        \ || echo \"\")\n                        if [ -z \"$ACTIVE_ADDRESS\" ] ||\
-        \ [ \"$ACTIVE_ADDRESS\" = \"None\" ]; then\n                            echo\
-        \ \"\u274C No active address found.\"\n                            echo \"\
-        Attempting to set first available address as active...\"\n               \
-        \             \n                            # Get first available address\
-        \ and set as active\n                            FIRST_ADDRESS=$(sui client\
-        \ addresses 2>/dev/null | grep -E '^0x' | head -n1 | awk '{print $1}' || echo\
-        \ \"\")\n                            if [ -n \"$FIRST_ADDRESS\" ]; then\n\
-        \                                echo \"Setting $FIRST_ADDRESS as active address...\"\
-        \n                                sui client switch --address \"$FIRST_ADDRESS\"\
-        \ || {\n                                    echo \"\u274C Failed to set active\
-        \ address\"\n                                    exit 1\n                \
-        \                }\n                                ACTIVE_ADDRESS=\"$FIRST_ADDRESS\"\
-        \n                                echo \"\u2705 Active address set to: $ACTIVE_ADDRESS\"\
-        \n                            else\n                                echo \"\
-        \u274C No addresses found to set as active\"\n                           \
-        \     exit 1\n                            fi\n                        else\n\
-        \                            echo \"\u2705 Active address: $ACTIVE_ADDRESS\"\
-        \n                        fi\n                        \n                 \
-        \       # Check gas balance\n                        echo \"Checking gas balance...\"\
-        \n                        if ! sui client gas --address \"$ACTIVE_ADDRESS\"\
-        \ 2>/dev/null; then\n                            echo \"\u274C Failed to check\
-        \ gas balance or no gas objects found.\"\n                            echo\
-        \ \"Please fund your address with devnet SUI tokens before deployment.\"\n\
-        \                            echo \"Address to fund: $ACTIVE_ADDRESS\"\n \
-        \                           echo \"You can get devnet tokens from: https://discord.com/channels/916379725201563759/971488439931392130\"\
-        \n                            echo \"Or use the faucet: curl -X POST https://faucet.devnet.sui.io/gas\
-        \ -H 'Content-Type: application/json' -d '{\"FixedAmountRequest\":{\"recipient\"\
-        :\"$ACTIVE_ADDRESS\"}}'\"\n                            exit 1\n          \
-        \              fi\n                        \n                        echo\
-        \ \"=== Publishing Package ===\"\n                        if sui client publish\
+        \                \n                        # Check if we have gas before attempting\
+        \ deployment\n                        echo \"Checking gas balance...\"\n \
+        \                       sui client gas || {\n                            echo\
+        \ \"\u274C Failed to check gas balance. Address may not be funded.\"\n   \
+        \                         echo \"Please fund your address with testnet SUI\
+        \ tokens before deployment.\"\n                            exit 1\n      \
+        \                  }\n                        \n                        echo\
+        \ \"Publishing package...\"\n                        if sui client publish\
         \ --gas-budget 100000000; then\n                            echo \"\u2705\
-        \ Package published successfully to devnet\"\n                        else\n\
-        \                            echo \"\u274C Deployment failed\"\n         \
-        \                   echo \"This might be due to insufficient gas, network\
-        \ issues, or compilation errors\"\n                            exit 1\n  \
-        \                      fi\n                    "
+        \ Package published successfully\"\n                        else\n       \
+        \                     echo \"\u274C Deployment failed\"\n                \
+        \            echo \"This might be due to insufficient gas or network issues\"\
+        \n                            exit 1\n                        fi\n       \
+        \             "
     - name: Verify deployment
       if: github.ref == 'refs/heads/main' && github.event_name == 'push'
       env:
