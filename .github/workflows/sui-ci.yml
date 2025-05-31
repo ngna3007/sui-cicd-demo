@@ -79,33 +79,44 @@ jobs:
         \ ] && [ -n \"$SUI_ALIASES\" ]; then\n                            # Initialize\
         \ addresses from keystore\n                            echo \"=== Initializing\
         \ Addresses ===\"\n                            python3 << 'EOF'\nimport json\n\
-        import subprocess\nimport sys\nimport yaml\n\ntry:\n    # Check Sui version\n\
+        import subprocess\nimport sys\nimport os\n\ntry:\n    # Check Sui version\n\
         \    result = subprocess.run(['sui', '--version'], \n                    \
         \    capture_output=True, text=True)\n    print(f\"Sui version: {result.stdout.strip()}\"\
-        )\n    \n    # Read and fix client.yaml paths\n    print(\"Fixing paths in\
-        \ client.yaml...\")\n    with open('/home/runner/.sui/sui_config/client.yaml')\
-        \ as f:\n        config = yaml.safe_load(f)\n    \n    # Update the keystore\
-        \ path to the CI environment path\n    if 'keystore' in config and 'File'\
-        \ in config['keystore']:\n        config['keystore']['File'] = '/home/runner/.sui/sui_config/sui.keystore'\n\
-        \        print(\"Updated keystore path in client.yaml\")\n    \n    # Write\
-        \ the updated config back\n    with open('/home/runner/.sui/sui_config/client.yaml',\
-        \ 'w') as f:\n        yaml.safe_dump(config, f, default_flow_style=False)\n\
-        \    \n    # Verify the configuration files are properly set up\n    print(\"\
-        Verifying configuration files...\")\n    \n    # Check if keystore file exists\
-        \ and is valid\n    try:\n        with open('/home/runner/.sui/sui_config/sui.keystore')\
-        \ as f:\n            keystore = json.load(f)\n        print(f\"\u2705 Keystore\
-        \ loaded with {len(keystore)} keys\")\n    except Exception as e:\n      \
-        \  print(f\"\u274C Error reading keystore: {e}\")\n        sys.exit(1)\n \
-        \   \n    # Check if aliases file exists and is valid\n    try:\n        with\
-        \ open('/home/runner/.sui/sui_config/sui.aliases') as f:\n            aliases\
-        \ = json.load(f)\n        print(f\"\u2705 Aliases loaded with {len(aliases)}\
-        \ entries\")\n    except Exception as e:\n        print(f\"\u274C Error reading\
-        \ aliases: {e}\")\n        sys.exit(1)\n    \n    # Check current addresses\
-        \ (should work now with correct paths)\n    print(\"Checking available addresses...\"\
-        )\n    try:\n        result = subprocess.run(['sui', 'client', 'addresses'],\
-        \ \n                            capture_output=True, text=True)\n        if\
-        \ result.returncode == 0:\n            print(\"\u2705 Address command succeeded\"\
-        )\n            addresses_output = result.stdout.strip()\n            if addresses_output\
+        )\n    \n    # Check if config files exist\n    config_dir = '/home/runner/.sui/sui_config'\n\
+        \    client_yaml = os.path.join(config_dir, 'client.yaml')\n    keystore_file\
+        \ = os.path.join(config_dir, 'sui.keystore')\n    aliases_file = os.path.join(config_dir,\
+        \ 'sui.aliases')\n    \n    print(f\"Checking if files exist:\")\n    print(f\"\
+        \  client.yaml: {os.path.exists(client_yaml)}\")\n    print(f\"  sui.keystore:\
+        \ {os.path.exists(keystore_file)}\")\n    print(f\"  sui.aliases: {os.path.exists(aliases_file)}\"\
+        )\n    \n    if os.path.exists(client_yaml):\n        # Read and fix client.yaml\
+        \ paths using string replacement\n        print(\"Fixing paths in client.yaml...\"\
+        )\n        with open(client_yaml, 'r') as f:\n            config_content =\
+        \ f.read()\n        \n        # Replace the local path with CI path\n    \
+        \    updated_content = config_content.replace(\n            '/home/ngocanh/.sui/sui_config/sui.keystore',\n\
+        \            '/home/runner/.sui/sui_config/sui.keystore'\n        )\n    \
+        \    \n        # Write the updated config back\n        with open(client_yaml,\
+        \ 'w') as f:\n            f.write(updated_content)\n        print(\"\u2705\
+        \ Updated keystore path in client.yaml\")\n    else:\n        print(\"\u274C\
+        \ client.yaml not found\")\n        sys.exit(1)\n    \n    # Verify the configuration\
+        \ files are properly set up\n    print(\"Verifying configuration files...\"\
+        )\n    \n    # Check if keystore file exists and is valid\n    if os.path.exists(keystore_file):\n\
+        \        try:\n            with open(keystore_file) as f:\n              \
+        \  keystore = json.load(f)\n            print(f\"\u2705 Keystore loaded with\
+        \ {len(keystore)} keys\")\n        except Exception as e:\n            print(f\"\
+        \u274C Error reading keystore: {e}\")\n            sys.exit(1)\n    else:\n\
+        \        print(\"\u274C Keystore file not found\")\n        sys.exit(1)\n\
+        \    \n    # Check if aliases file exists and is valid\n    if os.path.exists(aliases_file):\n\
+        \        try:\n            with open(aliases_file) as f:\n               \
+        \ aliases = json.load(f)\n            print(f\"\u2705 Aliases loaded with\
+        \ {len(aliases)} entries\")\n        except Exception as e:\n            print(f\"\
+        \u274C Error reading aliases: {e}\")\n            sys.exit(1)\n    else:\n\
+        \        print(\"\u274C Aliases file not found\")\n        sys.exit(1)\n \
+        \   \n    # Check current addresses (should work now with correct paths)\n\
+        \    print(\"Checking available addresses...\")\n    try:\n        result\
+        \ = subprocess.run(['sui', 'client', 'addresses'], \n                    \
+        \        capture_output=True, text=True)\n        if result.returncode ==\
+        \ 0:\n            print(\"\u2705 Address command succeeded\")\n          \
+        \  addresses_output = result.stdout.strip()\n            if addresses_output\
         \ and \"No managed addresses\" not in addresses_output:\n                print(\"\
         Available addresses:\")\n                print(addresses_output)\n       \
         \     else:\n                print(\"No addresses found in output\")\n   \
