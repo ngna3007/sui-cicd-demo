@@ -28,11 +28,9 @@ jobs:
     - name: Install Homebrew
       run: /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
     - name: Configure Homebrew
-      run: "\n                        sudo apt-get install build-essential\n     \
-        \                   echo >> /home/runner/.bashrc\n                       \
-        \ echo 'eval \"$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)\"' >> /home/runner/.bashrc\n\
-        \                        eval \"$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)\"\
-        \n                        brew install gcc\n                    "
+      run: "\n                        echo 'eval \"$(/home/linuxbrew/.linuxbrew/bin/brew\
+        \ shellenv)\"' >> ~/.bashrc\n                        eval \"$(/home/linuxbrew/.linuxbrew/bin/brew\
+        \ shellenv)\"\n                    "
     - name: Install Sui CLI
       run: brew install sui
     - name: Build Move modules
