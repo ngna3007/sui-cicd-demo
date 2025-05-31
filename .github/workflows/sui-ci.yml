@@ -90,9 +90,11 @@ jobs:
         \               \n                            # Initialize addresses from\
         \ keystore\n                            echo \"=== Initializing Addresses\
         \ ===\"\n                            python3 << 'EOF'\nimport json\nimport\
-        \ subprocess\nimport sys\n\ntry:\n    # Read keystore and aliases\n    with\
-        \ open('/home/runner/.sui/sui_config/sui.keystore') as f:\n        keystore\
-        \ = json.load(f)\n    with open('/home/runner/.sui/sui_config/sui.aliases')\
+        \ subprocess\nimport sys\n\ntry:\n    # Check Sui version\n    result = subprocess.run(['sui',\
+        \ '--version'], \n                        capture_output=True, text=True)\n\
+        \    print(f\"Sui version: {result.stdout.strip()}\")\n    \n    # Read keystore\
+        \ and aliases\n    with open('/home/runner/.sui/sui_config/sui.keystore')\
+        \ as f:\n        keystore = json.load(f)\n    with open('/home/runner/.sui/sui_config/sui.aliases')\
         \ as f:\n        aliases = json.load(f)\n    \n    print(f\"Found {len(keystore)}\
         \ keys in keystore\")\n    print(f\"Found {len(aliases)} aliases\")\n    \n\
         \    # Get current addresses\n    try:\n        result = subprocess.run(['sui',\
@@ -105,40 +107,44 @@ jobs:
         \ in aliases:\n            alias = alias_entry.get('alias', '')\n        \
         \    pubkey_base64 = alias_entry.get('public_key_base64', '')\n          \
         \  \n            if pubkey_base64:\n                print(f\"Creating address\
-        \ for {alias}\")\n                try:\n                    # Using ed25519\
-        \ as the key scheme, and providing alias as a positional argument\n      \
-        \              subprocess.run(['sui', 'client', 'new-address', \n        \
-        \                        'ed25519',  # key scheme\n                      \
-        \          alias,      # alias as positional argument\n                  \
-        \              '--base64-key', pubkey_base64], \n                        \
-        \        check=True)\n                except subprocess.CalledProcessError\
-        \ as e:\n                    print(f\"Error creating address: {e}\")\n   \
-        \ \n    # Set first address as active if none is set\n    result = subprocess.run(['sui',\
-        \ 'client', 'active-address'],\n                        capture_output=True,\
-        \ text=True)\n    active_address = result.stdout.strip()\n    \n    if not\
-        \ active_address or active_address == \"None\":\n        print(\"Setting first\
-        \ address as active...\")\n        try:\n            # Get first address\n\
-        \            result = subprocess.run(['sui', 'client', 'addresses'],\n   \
-        \                             capture_output=True, text=True)\n          \
-        \  addresses = [line.split()[0] for line in result.stdout.splitlines() \n\
-        \                        if line.startswith('0x')]\n            \n       \
-        \     if addresses:\n                subprocess.run(['sui', 'client', 'switch',\
-        \ '--address', addresses[0]],\n                            check=True)\n \
-        \               print(f\"Set active address to: {addresses[0]}\")\n      \
-        \  except Exception as e:\n            print(f\"Error setting active address:\
-        \ {e}\")\n            sys.exit(1)\n\nexcept Exception as e:\n    print(f\"\
-        \u274C Address initialization failed: {e}\")\n    sys.exit(1)\nEOF\n     \
-        \                       \n                            # Verify setup\n   \
-        \                         echo \"=== Verification ===\"\n                \
-        \            echo \"Active environment:\"\n                            sui\
-        \ client active-env || exit 1\n                            \n            \
-        \                echo \"Available addresses:\"\n                         \
-        \   sui client addresses || exit 1\n                            \n       \
-        \                     echo \"Active address:\"\n                         \
-        \   sui client active-address || exit 1\n                            \n  \
-        \                      else\n                            echo \"\u274C Required\
-        \ secrets missing\"\n                            exit 1\n                \
-        \        fi\n                    "
+        \ for {alias}\")\n                try:\n                    # Import the key\
+        \ directly using the keystore file\n                    with open('/home/runner/.sui/sui_config/temp_key.b64',\
+        \ 'w') as f:\n                        f.write(pubkey_base64)\n           \
+        \         \n                    # Import the key using the import command\n\
+        \                    subprocess.run(['sui', 'keytool', 'import', \n      \
+        \                          '/home/runner/.sui/sui_config/temp_key.b64',\n\
+        \                                'ed25519',\n                            \
+        \    alias], \n                                check=True)\n             \
+        \       \n                    # Clean up temp file\n                    subprocess.run(['rm',\
+        \ '/home/runner/.sui/sui_config/temp_key.b64'])\n                    \n  \
+        \              except subprocess.CalledProcessError as e:\n              \
+        \      print(f\"Error creating address: {e}\")\n    \n    # Set first address\
+        \ as active if none is set\n    result = subprocess.run(['sui', 'client',\
+        \ 'active-address'],\n                        capture_output=True, text=True)\n\
+        \    active_address = result.stdout.strip()\n    \n    if not active_address\
+        \ or active_address == \"None\":\n        print(\"Setting first address as\
+        \ active...\")\n        try:\n            # Get first address\n          \
+        \  result = subprocess.run(['sui', 'client', 'addresses'],\n             \
+        \                   capture_output=True, text=True)\n            addresses\
+        \ = [line.split()[0] for line in result.stdout.splitlines() \n           \
+        \             if line.startswith('0x')]\n            \n            if addresses:\n\
+        \                subprocess.run(['sui', 'client', 'switch', '--address', addresses[0]],\n\
+        \                            check=True)\n                print(f\"Set active\
+        \ address to: {addresses[0]}\")\n            else:\n                print(\"\
+        No addresses available to set as active\")\n        except Exception as e:\n\
+        \            print(f\"Error setting active address: {e}\")\n            sys.exit(1)\n\
+        \nexcept Exception as e:\n    print(f\"\u274C Address initialization failed:\
+        \ {e}\")\n    sys.exit(1)\nEOF\n                            \n           \
+        \                 # Verify setup\n                            echo \"=== Verification\
+        \ ===\"\n                            echo \"Active environment:\"\n      \
+        \                      sui client active-env || exit 1\n                 \
+        \           \n                            echo \"Available addresses:\"\n\
+        \                            sui client addresses || exit 1\n            \
+        \                \n                            echo \"Active address:\"\n\
+        \                            sui client active-address || exit 1\n       \
+        \                     \n                        else\n                   \
+        \         echo \"\u274C Required secrets missing\"\n                     \
+        \       exit 1\n                        fi\n                    "
     - name: Deploy to devnet
       if: github.ref == 'refs/heads/main' && github.event_name == 'push'
       env:
