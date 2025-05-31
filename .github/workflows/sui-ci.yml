@@ -134,18 +134,17 @@ jobs:
         \                            print(f\"Error setting active address: {e}\"\
         )\n                            sys.exit(1)\n\n                except Exception\
         \ as e:\n                    print(f\"\u274C Address initialization failed:\
-        \ {e}\")\n                    sys.exit(1)\n                EOF\n         \
-        \                   \n                            # Verify setup\n       \
-        \                     echo \"=== Verification ===\"\n                    \
-        \        echo \"Active environment:\"\n                            sui client\
-        \ active-env || exit 1\n                            \n                   \
-        \         echo \"Available addresses:\"\n                            sui client\
-        \ addresses || exit 1\n                            \n                    \
-        \        echo \"Active address:\"\n                            sui client\
-        \ active-address || exit 1\n                            \n               \
-        \         else\n                            echo \"\u274C Required secrets\
-        \ missing\"\n                            exit 1\n                        fi\n\
-        \                    "
+        \ {e}\")\n                    sys.exit(1)\nEOF\n                         \
+        \   \n                            # Verify setup\n                       \
+        \     echo \"=== Verification ===\"\n                            echo \"Active\
+        \ environment:\"\n                            sui client active-env || exit\
+        \ 1\n                            \n                            echo \"Available\
+        \ addresses:\"\n                            sui client addresses || exit 1\n\
+        \                            \n                            echo \"Active address:\"\
+        \n                            sui client active-address || exit 1\n      \
+        \                      \n                        else\n                  \
+        \          echo \"\u274C Required secrets missing\"\n                    \
+        \        exit 1\n                        fi\n                    "
     - name: Deploy to devnet
       if: github.ref == 'refs/heads/main' && github.event_name == 'push'
       env:
