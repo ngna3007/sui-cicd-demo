@@ -11,17 +11,10 @@ name: Sui Smart Contract CI/CD
 env:
   RUST_BACKTRACE: '1'
   SUI_LOG_LEVEL: info
-  SUI_BRANCH: devnet
 jobs:
-  build-and-deploy:
-    name: Build and Deploy
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os:
-        - ubuntu-latest
-        rust:
-        - stable
+  build:
+    name: Build
+    runs-on: ubuntu-latest
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -52,20 +45,75 @@ jobs:
         \                      # Build the project\n                        sui move\
         \ build\n                    "
       working-directory: ${{ github.workspace }}
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    - name: Install Homebrew and Sui
+      run: "\n                        # Install Homebrew\n                       \
+        \ /bin/bash -c \"$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\"\
+        \n                        \n                        # Add brew to PATH for\
+        \ this step and future steps\n                        echo \"/home/linuxbrew/.linuxbrew/bin\"\
+        \ >> $GITHUB_PATH\n                        echo \"/home/linuxbrew/.linuxbrew/sbin\"\
+        \ >> $GITHUB_PATH\n                        \n                        # Set\
+        \ environment variables for this workflow\n                        echo \"\
+        HOMEBREW_PREFIX=/home/linuxbrew/.linuxbrew\" >> $GITHUB_ENV\n            \
+        \            echo \"HOMEBREW_CELLAR=/home/linuxbrew/.linuxbrew/Cellar\" >>\
+        \ $GITHUB_ENV\n                        echo \"HOMEBREW_REPOSITORY=/home/linuxbrew/.linuxbrew/Homebrew\"\
+        \ >> $GITHUB_ENV\n                        \n                        # Source\
+        \ brew environment for this step\n                        eval \"$(/home/linuxbrew/.linuxbrew/bin/brew\
+        \ shellenv)\"\n                        \n                        # Install\
+        \ dependencies\n                        sudo apt-get update\n            \
+        \            sudo apt-get install -y build-essential\n                   \
+        \     brew install gcc\n                        \n                       \
+        \ # Install Sui\n                        brew install sui\n              \
+        \          \n                        # Verify Sui installation\n         \
+        \               sui --version\n                    "
     - name: Run Move tests
-      if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
       run: "\n                        # Verify sui command is available\n        \
         \                which sui || (echo \"Sui command not found in PATH\" && exit\
         \ 1)\n                        \n                        # Run tests\n    \
         \                    sui move test\n                    "
       working-directory: ${{ github.workspace }}
+  deploy:
+    name: Deploy to Devnet
+    runs-on: ubuntu-latest
+    needs:
+    - build
+    - test
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    env:
+      SUI_NETWORK: devnet
+      SUI_CONFIG: ${{ secrets.SUI_CONFIG }}
+      SUI_KEYSTORE: ${{ secrets.SUI_KEYSTORE }}
+      SUI_ALIASES: ${{ secrets.SUI_ALIASES }}
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    - name: Install Homebrew and Sui
+      run: "\n                        # Install Homebrew\n                       \
+        \ /bin/bash -c \"$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\"\
+        \n                        \n                        # Add brew to PATH for\
+        \ this step and future steps\n                        echo \"/home/linuxbrew/.linuxbrew/bin\"\
+        \ >> $GITHUB_PATH\n                        echo \"/home/linuxbrew/.linuxbrew/sbin\"\
+        \ >> $GITHUB_PATH\n                        \n                        # Set\
+        \ environment variables for this workflow\n                        echo \"\
+        HOMEBREW_PREFIX=/home/linuxbrew/.linuxbrew\" >> $GITHUB_ENV\n            \
+        \            echo \"HOMEBREW_CELLAR=/home/linuxbrew/.linuxbrew/Cellar\" >>\
+        \ $GITHUB_ENV\n                        echo \"HOMEBREW_REPOSITORY=/home/linuxbrew/.linuxbrew/Homebrew\"\
+        \ >> $GITHUB_ENV\n                        \n                        # Source\
+        \ brew environment for this step\n                        eval \"$(/home/linuxbrew/.linuxbrew/bin/brew\
+        \ shellenv)\"\n                        \n                        # Install\
+        \ dependencies\n                        sudo apt-get update\n            \
+        \            sudo apt-get install -y build-essential\n                   \
+        \     brew install gcc\n                        \n                       \
+        \ # Install Sui\n                        brew install sui\n              \
+        \          \n                        # Verify Sui installation\n         \
+        \               sui --version\n                    "
     - name: Setup Sui CLI config and Deploy
-      if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-      env:
-        SUI_NETWORK: devnet
-        SUI_CONFIG: ${{ secrets.SUI_CONFIG }}
-        SUI_KEYSTORE: ${{ secrets.SUI_KEYSTORE }}
-        SUI_ALIASES: ${{ secrets.SUI_ALIASES }}
       run: "\n                        # Verify sui command is available\n        \
         \                which sui || (echo \"Sui command not found in PATH\" && exit\
         \ 1)\n                        \n                        # Check if all required\
@@ -82,88 +130,63 @@ jobs:
         \               \n                        # Create config directory\n    \
         \                    mkdir -p ~/.sui/sui_config\n                        \n\
         \                        echo \"Setting up Sui configuration...\"\n      \
-        \                  echo \"SUI_CONFIG secret present: $([ -n \"$SUI_CONFIG\"\
-        \ ] && echo \"YES\" || echo \"NO\")\"\n                        echo \"SUI_KEYSTORE\
-        \ secret present: $([ -n \"$SUI_KEYSTORE\" ] && echo \"YES\" || echo \"NO\"\
-        )\"\n                        echo \"SUI_ALIASES secret present: $([ -n \"\
-        $SUI_ALIASES\" ] && echo \"YES\" || echo \"NO\")\"\n                     \
-        \   \n                        # Write config file\n                      \
-        \  echo \"Writing SUI_CONFIG to client.yaml...\"\n                       \
-        \ echo \"$SUI_CONFIG\" > ~/.sui/sui_config/client.yaml\n                 \
-        \       echo \"\u2705 Written SUI_CONFIG to client.yaml\"\n              \
-        \          \n                        # Write keystore file\n             \
-        \           echo \"Writing SUI_KEYSTORE to sui.keystore...\"\n           \
-        \             echo \"$SUI_KEYSTORE\" > ~/.sui/sui_config/sui.keystore\n  \
-        \                      echo \"\u2705 Written SUI_KEYSTORE\"\n            \
-        \            \n                        # Write aliases file\n            \
-        \            echo \"Writing SUI_ALIASES to sui.aliases...\"\n            \
-        \            echo \"$SUI_ALIASES\" > ~/.sui/sui_config/sui.aliases\n     \
-        \                   echo \"\u2705 Written SUI_ALIASES\"\n                \
-        \        \n                        # Set proper permissions\n            \
-        \            chmod 600 ~/.sui/sui_config/*\n                        \n   \
-        \                     # Fix the keystore path in client.yaml\n           \
-        \             echo \"Fixing keystore path in client.yaml...\"\n          \
-        \              sed -i 's|/home/ngocanh/.sui/sui_config/sui.keystore|/home/runner/.sui/sui_config/sui.keystore|g'\
+        \                  \n                        # Write config file\n       \
+        \                 echo \"Writing SUI_CONFIG to client.yaml...\"\n        \
+        \                echo \"$SUI_CONFIG\" > ~/.sui/sui_config/client.yaml\n  \
+        \                      echo \"\u2705 Written SUI_CONFIG to client.yaml\"\n\
+        \                        \n                        # Write keystore file\n\
+        \                        echo \"Writing SUI_KEYSTORE to sui.keystore...\"\n\
+        \                        echo \"$SUI_KEYSTORE\" > ~/.sui/sui_config/sui.keystore\n\
+        \                        echo \"\u2705 Written SUI_KEYSTORE\"\n          \
+        \              \n                        # Write aliases file\n          \
+        \              echo \"Writing SUI_ALIASES to sui.aliases...\"\n          \
+        \              echo \"$SUI_ALIASES\" > ~/.sui/sui_config/sui.aliases\n   \
+        \                     echo \"\u2705 Written SUI_ALIASES\"\n              \
+        \          \n                        # Set proper permissions\n          \
+        \              chmod 600 ~/.sui/sui_config/*\n                        \n \
+        \                       # Fix the keystore path in client.yaml\n         \
+        \               echo \"Fixing keystore path in client.yaml...\"\n        \
+        \                sed -i 's|/home/ngocanh/.sui/sui_config/sui.keystore|/home/runner/.sui/sui_config/sui.keystore|g'\
         \ ~/.sui/sui_config/client.yaml\n                        echo \"\u2705 Updated\
-        \ keystore path\"\n                        \n                        # Verify\
-        \ the files have correct content\n                        echo \"=== Debugging\
-        \ Configuration Files ===\"\n                        echo \"client.yaml content:\"\
-        \n                        cat ~/.sui/sui_config/client.yaml\n            \
-        \            echo \"\"\n                        echo \"keystore content:\"\
-        \n                        cat ~/.sui/sui_config/sui.keystore\n           \
-        \             echo \"\"\n                        \n                      \
-        \  # Try to check if Sui recognizes the configuration\n                  \
-        \      echo \"=== Testing Sui Configuration ===\"\n                      \
-        \  echo \"Active environment:\"\n                        sui client active-env\
-        \ || echo \"Failed to get active env\"\n                        \n       \
-        \                 echo \"Checking addresses (this might fail):\"\n       \
-        \                 sui client addresses || {\n                            echo\
-        \ \"Failed to get addresses from keystore. Creating a new address for CI deployment...\"\
-        \n                            \n                            # Create a new\
-        \ address for CI deployment\n                            echo \"Creating new\
-        \ address...\"\n                            NEW_ADDRESS=$(sui client new-address\
-        \ ed25519 --json | jq -r '.address' 2>/dev/null || {\n                   \
-        \             # Fallback if JSON parsing fails\n                         \
-        \       sui client new-address ed25519 | grep -oE '0x[a-fA-F0-9]+' | head\
-        \ -1\n                            })\n                            \n     \
-        \                       if [ -n \"$NEW_ADDRESS\" ]; then\n               \
-        \                 echo \"\u2705 Created new address: $NEW_ADDRESS\"\n    \
-        \                            \n                                # Try to get\
-        \ devnet tokens\n                                echo \"Requesting devnet\
-        \ tokens...\"\n                                curl -X POST https://faucet.devnet.sui.io/gas\
+        \ keystore path\"\n                        \n                        # Try\
+        \ to check addresses from configuration\n                        echo \"===\
+        \ Checking Sui Configuration ===\"\n                        sui client addresses\
+        \ || {\n                            echo \"Failed to get addresses from keystore.\
+        \ Creating a new address for CI deployment...\"\n                        \
+        \    \n                            # Create a new address for CI deployment\n\
+        \                            echo \"Creating new address...\"\n          \
+        \                  NEW_ADDRESS=$(sui client new-address ed25519 --json | jq\
+        \ -r '.address' 2>/dev/null || {\n                                sui client\
+        \ new-address ed25519 | grep -oE '0x[a-fA-F0-9]+' | head -1\n            \
+        \                })\n                            \n                      \
+        \      if [ -n \"$NEW_ADDRESS\" ]; then\n                                echo\
+        \ \"\u2705 Created new address: $NEW_ADDRESS\"\n                         \
+        \       \n                                # Try to get devnet tokens\n   \
+        \                             echo \"Requesting devnet tokens...\"\n     \
+        \                           curl -X POST https://faucet.devnet.sui.io/gas\
         \                                     -H 'Content-Type: application/json'\
         \                                     -d \"{\"FixedAmountRequest\":{\"recipient\"\
         :\"$NEW_ADDRESS\"}}\"                                     --silent --show-error\
         \ || echo \"Warning: Failed to request tokens from faucet\"\n            \
-        \                    \n                                # Wait a bit for the\
-        \ faucet\n                                echo \"Waiting for faucet transaction...\"\
-        \n                                sleep 10\n                             \
-        \   \n                                # Check if we received tokens\n    \
-        \                            echo \"Checking gas objects...\"\n          \
-        \                      sui client gas || {\n                             \
-        \       echo \"\u274C No gas objects found. Deployment cannot proceed.\"\n\
-        \                                    echo \"Please manually fund the address:\
-        \ $NEW_ADDRESS\"\n                                    echo \"You can use the\
-        \ faucet at: https://discord.com/channels/916379725201563759/971488439931392130\"\
-        \n                                    exit 1\n                           \
-        \     }\n                            else\n                              \
-        \  echo \"\u274C Failed to create new address\"\n                        \
-        \        exit 1\n                            fi\n                        }\n\
-        \                        \n                        # Final check - get active\
-        \ address\n                        echo \"=== Final Configuration Check ===\"\
-        \n                        ACTIVE_ADDRESS=$(sui client active-address 2>/dev/null\
-        \ || echo \"\")\n                        if [ -z \"$ACTIVE_ADDRESS\" ] ||\
-        \ [ \"$ACTIVE_ADDRESS\" = \"None\" ]; then\n                            echo\
-        \ \"\u274C No active address found after configuration\"\n               \
-        \             exit 1\n                        else\n                     \
-        \       echo \"\u2705 Active address: $ACTIVE_ADDRESS\"\n                \
-        \        fi\n                        \n                        # Check if\
-        \ we have gas before attempting deployment\n                        echo \"\
-        Checking gas balance...\"\n                        if ! sui client gas; then\n\
-        \                            echo \"\u274C Failed to check gas balance or\
-        \ no gas objects found.\"\n                            echo \"Please fund\
-        \ your address with devnet SUI tokens before deployment.\"\n             \
-        \               echo \"You can get devnet tokens from: https://discord.com/channels/916379725201563759/971488439931392130\"\
+        \                    \n                                # Wait for the faucet\n\
+        \                                echo \"Waiting for faucet transaction...\"\
+        \n                                sleep 10\n                            else\n\
+        \                                echo \"\u274C Failed to create new address\"\
+        \n                                exit 1\n                            fi\n\
+        \                        }\n                        \n                   \
+        \     # Final check - get active address\n                        ACTIVE_ADDRESS=$(sui\
+        \ client active-address 2>/dev/null || echo \"\")\n                      \
+        \  if [ -z \"$ACTIVE_ADDRESS\" ] || [ \"$ACTIVE_ADDRESS\" = \"None\" ]; then\n\
+        \                            echo \"\u274C No active address found after configuration\"\
+        \n                            exit 1\n                        else\n     \
+        \                       echo \"\u2705 Active address: $ACTIVE_ADDRESS\"\n\
+        \                        fi\n                        \n                  \
+        \      # Check if we have gas before attempting deployment\n             \
+        \           echo \"Checking gas balance...\"\n                        if !\
+        \ sui client gas; then\n                            echo \"\u274C Failed to\
+        \ check gas balance or no gas objects found.\"\n                         \
+        \   echo \"Please fund your address with devnet SUI tokens before deployment.\"\
+        \n                            echo \"You can get devnet tokens from: https://discord.com/channels/916379725201563759/971488439931392130\"\
         \n                            exit 1\n                        fi\n       \
         \                 \n                        echo \"=== Publishing Package\
         \ ===\"\n                        if sui client publish --gas-budget 100000000;\
@@ -173,77 +196,3 @@ jobs:
         \ be due to insufficient gas, network issues, or compilation errors\"\n  \
         \                          exit 1\n                        fi\n          \
         \          "
-    - name: Request Test Tokens
-      if: failure() && github.ref == 'refs/heads/main'
-      run: "\n                        ACTIVE_ADDRESS=$(sui client active-address)\n\
-        \                        echo \"Requesting test tokens for $ACTIVE_ADDRESS\"\
-        \n                        curl -X POST https://faucet.devnet.sui.io/gas  \
-        \                           -H 'Content-Type: application/json'          \
-        \                   -d '{\"FixedAmountRequest\":{\"recipient\":\"$ACTIVE_ADDRESS\"\
-        }}'\n                    "
-    - name: Deploy to testnet
-      if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-      env:
-        SUI_NETWORK: devnet
-        SUI_CONFIG: ${{ secrets.SUI_CONFIG }}
-        SUI_KEYSTORE: ${{ secrets.SUI_KEYSTORE }}
-        SUI_ALIASES: ${{ secrets.SUI_ALIASES }}
-      run: "\n                        # Verify sui command is available\n        \
-        \                which sui || (echo \"Sui command not found in PATH\" && exit\
-        \ 1)\n                        \n                        # Check if both SUI_CONFIG\
-        \ and SUI_KEYSTORE are provided\n                        if [ -z \"$SUI_CONFIG\"\
-        \ ] || [ -z \"$SUI_KEYSTORE\" ]; then\n                            echo \"\
-        \u26A0\uFE0F  Deployment skipped: SUI_CONFIG or SUI_KEYSTORE secret is not\
-        \ configured\"\n                            echo \"To enable deployment:\"\
-        \n                            echo \"1. Add SUI_CONFIG secret with your wallet\
-        \ configuration\"\n                            echo \"2. Add SUI_KEYSTORE\
-        \ secret with your keystore file content\"\n                            echo\
-        \ \"3. Fund the wallet with testnet SUI tokens\"\n                       \
-        \     exit 0\n                        fi\n                        \n     \
-        \                   echo \"Current active address:\"\n                   \
-        \     sui client active-address || {\n                            echo \"\u274C\
-        \ No active address found. Please check your SUI_CONFIG and SUI_KEYSTORE secrets.\"\
-        \n                            exit 1\n                        }\n        \
-        \                \n                        # Check if we have gas before attempting\
-        \ deployment\n                        echo \"Checking gas balance...\"\n \
-        \                       sui client gas || {\n                            echo\
-        \ \"\u274C Failed to check gas balance. Address may not be funded.\"\n   \
-        \                         echo \"Please fund your address with testnet SUI\
-        \ tokens before deployment.\"\n                            exit 1\n      \
-        \                  }\n                        \n                        echo\
-        \ \"Publishing package...\"\n                        if sui client publish\
-        \ --gas-budget 100000000; then\n                            echo \"\u2705\
-        \ Package published successfully\"\n                        else\n       \
-        \                     echo \"\u274C Deployment failed\"\n                \
-        \            echo \"This might be due to insufficient gas or network issues\"\
-        \n                            exit 1\n                        fi\n       \
-        \             "
-    - name: Verify deployment
-      if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-      env:
-        SUI_CONFIG: ${{ secrets.SUI_CONFIG }}
-      run: "\n                        # Verify sui command is available\n        \
-        \                which sui || (echo \"Sui command not found in PATH\" && exit\
-        \ 1)\n                        \n                        # Skip verification\
-        \ if no SUI_CONFIG was provided\n                        if [ -z \"$SUI_CONFIG\"\
-        \ ]; then\n                            echo \"\u26A0\uFE0F  Deployment verification\
-        \ skipped: No SUI_CONFIG provided\"\n                            exit 0\n\
-        \                        fi\n                        \n                  \
-        \      # Get the latest transaction status\n                        echo \"\
-        Checking recent transactions...\"\n                        sui client transactions\
-        \ --limit 5 || true\n                        \n                        LATEST_TX=$(sui\
-        \ client transactions --limit 1 | tail -n 1 | awk '{print $1}' 2>/dev/null\
-        \ || echo \"\")\n                        if [ -n \"$LATEST_TX\" ] && [ \"\
-        $LATEST_TX\" != \"digest\" ]; then\n                            echo \"Verifying\
-        \ transaction: $LATEST_TX\"\n                            # Check transaction\
-        \ status\n                            if sui client transaction \"$LATEST_TX\"\
-        \ | grep -q \"Status.*Success\"; then\n                                echo\
-        \ \"\u2705 Deployment verified successfully\"\n                          \
-        \  else\n                                echo \"\u274C Deployment verification\
-        \ failed\"\n                                sui client transaction \"$LATEST_TX\"\
-        \ || true\n                                exit 1\n                      \
-        \      fi\n                        else\n                            echo\
-        \ \"\u26A0\uFE0F  No recent transaction found to verify, but deployment may\
-        \ have succeeded\"\n                            echo \"Check the Sui explorer\
-        \ for your package deployment\"\n                        fi\n            \
-        \        "
