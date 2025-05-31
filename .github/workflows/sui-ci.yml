@@ -48,12 +48,24 @@ jobs:
       with:
         name: gas-report
         path: gas_report.txt
+        retention-days: 5
   deploy:
     name: Deploy to Testnet
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     needs: build-and-test
     runs-on: ubuntu-latest
     steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+    - name: Download gas report
+      uses: actions/download-artifact@v3
+      with:
+        name: gas-report
+        path: gas-reports
+      continue-on-error: true
+    - name: Display gas report
+      if: ${{ success() }}
+      run: cat gas-reports/gas_report.txt || echo "No gas report found"
     - name: Setup Sui CLI config
       run: mkdir -p ~/.sui/sui_config && echo "${{ secrets.SUI_CONFIG }}" > ~/.sui/sui_config/client.yaml
     - name: Deploy to testnet
