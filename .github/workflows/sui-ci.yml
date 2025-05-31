@@ -90,22 +90,25 @@ jobs:
         \               \n                            # Initialize addresses from\
         \ keystore\n                            echo \"=== Initializing Addresses\
         \ ===\"\n                            python3 << 'EOF'\nimport json\nimport\
-        \ subprocess\nimport sys\n\ntry:\n    # Read keystore\n    with open('/home/runner/.sui/sui_config/sui.keystore')\
-        \ as f:\n        keys = json.load(f)\n    \n    print(f\"Found {len(keys)}\
-        \ keys in keystore\")\n    \n    # Get current addresses\n    try:\n     \
-        \   result = subprocess.run(['sui', 'client', 'addresses'], \n           \
-        \                 capture_output=True, text=True)\n        current_addresses\
-        \ = result.stdout\n    except Exception as e:\n        print(f\"Error getting\
-        \ addresses: {e}\")\n        current_addresses = \"\"\n    \n    # If no addresses,\
-        \ create them from keystore\n    if \"No managed addresses\" in current_addresses\
-        \ or not current_addresses.strip():\n        print(\"Creating addresses from\
-        \ keystore...\")\n        for key in keys:\n            alias = key.get('alias',\
-        \ '')\n            pubkey = key.get('public_key', '')\n            \n    \
-        \        if pubkey:\n                print(f\"Creating address for {alias}\"\
-        )\n                try:\n                    subprocess.run(['sui', 'client',\
-        \ 'new-address', \n                                '--alias', alias,\n   \
-        \                             '--key', pubkey], \n                       \
-        \         check=True)\n                except subprocess.CalledProcessError\
+        \ subprocess\nimport sys\n\ntry:\n    # Read keystore and aliases\n    with\
+        \ open('/home/runner/.sui/sui_config/sui.keystore') as f:\n        keystore\
+        \ = json.load(f)\n    with open('/home/runner/.sui/sui_config/sui.aliases')\
+        \ as f:\n        aliases = json.load(f)\n    \n    print(f\"Found {len(keystore)}\
+        \ keys in keystore\")\n    print(f\"Found {len(aliases)} aliases\")\n    \n\
+        \    # Get current addresses\n    try:\n        result = subprocess.run(['sui',\
+        \ 'client', 'addresses'], \n                            capture_output=True,\
+        \ text=True)\n        current_addresses = result.stdout\n    except Exception\
+        \ as e:\n        print(f\"Error getting addresses: {e}\")\n        current_addresses\
+        \ = \"\"\n    \n    # If no addresses, create them from keystore and aliases\n\
+        \    if \"No managed addresses\" in current_addresses or not current_addresses.strip():\n\
+        \        print(\"Creating addresses from keystore...\")\n        for alias_entry\
+        \ in aliases:\n            alias = alias_entry.get('alias', '')\n        \
+        \    pubkey_base64 = alias_entry.get('public_key_base64', '')\n          \
+        \  \n            if pubkey_base64:\n                print(f\"Creating address\
+        \ for {alias}\")\n                try:\n                    subprocess.run(['sui',\
+        \ 'client', 'new-address', \n                                '--alias', alias,\n\
+        \                                '--key-base64', pubkey_base64], \n      \
+        \                          check=True)\n                except subprocess.CalledProcessError\
         \ as e:\n                    print(f\"Error creating address: {e}\")\n   \
         \ \n    # Set first address as active if none is set\n    result = subprocess.run(['sui',\
         \ 'client', 'active-address'],\n                        capture_output=True,\
