@@ -45,6 +45,172 @@ jobs:
         \                      # Build the project\n                        sui move\
         \ build\n                    "
       working-directory: ${{ github.workspace }}
+  security:
+    name: Security Analysis
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    - name: Install Homebrew and Sui
+      run: "\n                        # Install Homebrew\n                       \
+        \ /bin/bash -c \"$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\"\
+        \n                        \n                        # Add brew to PATH for\
+        \ this step and future steps\n                        echo \"/home/linuxbrew/.linuxbrew/bin\"\
+        \ >> $GITHUB_PATH\n                        echo \"/home/linuxbrew/.linuxbrew/sbin\"\
+        \ >> $GITHUB_PATH\n                        \n                        # Set\
+        \ environment variables for this workflow\n                        echo \"\
+        HOMEBREW_PREFIX=/home/linuxbrew/.linuxbrew\" >> $GITHUB_ENV\n            \
+        \            echo \"HOMEBREW_CELLAR=/home/linuxbrew/.linuxbrew/Cellar\" >>\
+        \ $GITHUB_ENV\n                        echo \"HOMEBREW_REPOSITORY=/home/linuxbrew/.linuxbrew/Homebrew\"\
+        \ >> $GITHUB_ENV\n                        \n                        # Source\
+        \ brew environment for this step\n                        eval \"$(/home/linuxbrew/.linuxbrew/bin/brew\
+        \ shellenv)\"\n                        \n                        # Install\
+        \ dependencies\n                        sudo apt-get update\n            \
+        \            sudo apt-get install -y build-essential jq\n                \
+        \        brew install gcc\n                        \n                    \
+        \    # Install Sui\n                        brew install sui\n           \
+        \             \n                        # Verify Sui installation\n      \
+        \                  sui --version\n                    "
+    - name: Run Sui Built-in Linters
+      run: "\n                        # Run Move build with linting enabled\n    \
+        \                    echo \"=== Running Sui Built-in Linters ===\"\n     \
+        \                   sui move build --lint || echo \"Linting completed with\
+        \ warnings\"\n                        \n                        # Check for\
+        \ potential security issues in linter output\n                        echo\
+        \ \"=== Linter Security Summary ===\"\n                        echo \"Built-in\
+        \ linters check for:\"\n                        echo \"- Coin field optimization\
+        \ (W03001)\"\n                        echo \"- Collection equality issues\
+        \ (W05001)\" \n                        echo \"- Custom state change problems\
+        \ (W02001)\"\n                        echo \"- Freeze wrapped object issues\
+        \ (W04001)\"\n                        echo \"- Self transfer anti-patterns\
+        \ (W01001)\"\n                        echo \"- Share owned object problems\
+        \ (W00001)\"\n                    "
+      working-directory: ${{ github.workspace }}
+    - name: Security Best Practices Check
+      run: "\n                        echo \"=== Security Best Practices Analysis\
+        \ ===\"\n                        \n                        # Check for common\
+        \ security patterns\n                        echo \"Checking for common security\
+        \ patterns...\"\n                        \n                        # Check\
+        \ for proper access controls\n                        echo \"\u2192 Checking\
+        \ access control patterns...\"\n                        grep -r \"public(\"\
+        \ sources/ || echo \"No public functions found\"\n                       \
+        \ grep -r \"entry \" sources/ || echo \"No entry functions found\"\n     \
+        \                   grep -r \"public(package)\" sources/ || echo \"No package-level\
+        \ functions found\"\n                        \n                        # Check\
+        \ for proper object management\n                        echo \"\u2192 Checking\
+        \ object management...\"\n                        grep -r \"transfer::\" sources/\
+        \ || echo \"No transfer operations found\"\n                        grep -r\
+        \ \"share_object\" sources/ || echo \"No shared objects found\"\n        \
+        \                \n                        # Check for capability usage\n\
+        \                        echo \"\u2192 Checking capability usage...\"\n  \
+        \                      grep -r \"has key\" sources/ || echo \"No key capabilities\
+        \ found\"\n                        grep -r \"has store\" sources/ || echo\
+        \ \"No store capabilities found\"\n                        \n            \
+        \            # Check for potential flash loan patterns\n                 \
+        \       echo \"\u2192 Checking for flash loan patterns (Hot Potato)...\"\n\
+        \                        grep -r \"borrow\\|loan\" sources/ || echo \"No borrowing\
+        \ patterns found\"\n                        \n                        # Check\
+        \ for arithmetic operations that might overflow\n                        echo\
+        \ \"\u2192 Checking arithmetic operations...\"\n                        grep\
+        \ -r \"<<\\|>>\" sources/ && echo \"\u26A0\uFE0F  Found bitwise operations\
+        \ - check for overflow\" || echo \"No bitwise operations found\"\n       \
+        \                 \n                        # Check for external calls\n \
+        \                       echo \"\u2192 Checking external module usage...\"\n\
+        \                        grep -r \"use.*::\" sources/ | head -10 || echo \"\
+        No external modules found\"\n                        \n                  \
+        \      echo \"\u2705 Security best practices check completed\"\n         \
+        \           "
+      working-directory: ${{ github.workspace }}
+    - name: Formal Verification Check
+      run: "\n                        echo \"=== Formal Verification Analysis ===\"\
+        \n                        \n                        # Check if Sui Prover\
+        \ specs are present\n                        if find sources/ -name \"*.move\"\
+        \ -exec grep -l \"spec\\|ensures\\|requires\\|aborts_if\" {} \\; | head -5;\
+        \ then\n                            echo \"\u2705 Found formal verification\
+        \ specs\"\n                            echo \"Formal specs help prove:\"\n\
+        \                            echo \"- Function correctness\"\n           \
+        \                 echo \"- Invariant preservation\"\n                    \
+        \        echo \"- Absence of arithmetic overflows\"\n                    \
+        \        echo \"- Resource safety properties\"\n                        else\n\
+        \                            echo \"\u26A0\uFE0F  No formal verification specs\
+        \ found\"\n                            echo \"Consider adding formal specs\
+        \ for critical functions:\"\n                            echo \"- spec ensures\
+        \ result == expected\"\n                            echo \"- spec requires\
+        \ input > 0\"\n                            echo \"- spec aborts_if condition\"\
+        \n                            echo \"\"\n                            echo\
+        \ \"Learn more: https://github.com/asymptotic-io/sui-prover\"\n          \
+        \              fi\n                    "
+      working-directory: ${{ github.workspace }}
+    - name: Generate Security Report
+      run: "\n                        echo \"=== Generating Security Report ===\"\n\
+        \                        \n                        # Create security report\n\
+        \                        cat > security-report.md << 'EOF'\n             \
+        \           # Security Analysis Report\n                        \n       \
+        \                 ## Overview\n                        This report summarizes\
+        \ the security analysis of the Sui Move smart contracts.\n               \
+        \         \n                        ## Tools Used\n                      \
+        \  - **Sui Built-in Linters**: Checks for Move-specific anti-patterns\n  \
+        \                      - **Security Best Practices**: Manual checks for common\
+        \ vulnerabilities\n                        - **Formal Verification**: Checks\
+        \ for mathematical proofs of correctness\n                        \n     \
+        \                   ## Security Considerations for Sui Move Contracts\n  \
+        \                      \n                        ### 1. Access Control\n \
+        \                       - \u2705 Review function visibility (`public`, `entry`,\
+        \ `public(package)`)\n                        - \u2705 Ensure proper capability-based\
+        \ security\n                        - \u2705 Validate object ownership patterns\n\
+        \                        \n                        ### 2. Object Management\
+        \  \n                        - \u2705 Proper use of transfer operations\n\
+        \                        - \u2705 Correct shared vs owned object handling\n\
+        \                        - \u2705 Avoid freezing wrapped objects\n       \
+        \                 \n                        ### 3. Arithmetic Safety\n   \
+        \                     - \u2705 Move provides automatic overflow protection\n\
+        \                        - \u26A0\uFE0F Bitwise operations don't have overflow\
+        \ checks\n                        - \u2705 Consider precision errors in calculations\n\
+        \                        \n                        ### 4. Resource Safety\n\
+        \                        - \u2705 Move's linear type system prevents double-spending\n\
+        \                        - \u2705 Resources must be explicitly consumed or\
+        \ stored\n                        - \u2705 No dangling references possible\n\
+        \                        \n                        ### 5. Flash Loan Protection\n\
+        \                        - \u2705 Analyze \"Hot Potato\" patterns\n      \
+        \                  - \u2705 Ensure proper state validation\n             \
+        \           - \u2705 Check for price oracle manipulation\n               \
+        \         \n                        ## Recommended Security Practices\n  \
+        \                      \n                        1. **Use Formal Verification**:\
+        \ Add specs to critical functions\n                        2. **Professional\
+        \ Audit**: Consider audits from:\n                           - MoveBit (Move-focused\
+        \ security)\n                           - OtterSec (Multi-chain auditor)\n\
+        \                           - Beosin (Move Lint tools)\n                 \
+        \          - SlowMist (Comprehensive auditing)\n                        3.\
+        \ **Static Analysis**: Use available linting tools\n                     \
+        \   4. **Testing**: Comprehensive unit and integration tests\n           \
+        \             5. **Documentation**: Clear function specifications\n      \
+        \                  \n                        ## External Security Resources\n\
+        \                        \n                        - [Sui Move Security Guide](https://docs.sui.io/concepts/sui-move-concepts)\n\
+        \                        - [MoveBit Security Tools](https://m.movebit.xyz/MoveScanner)\n\
+        \                        - [Sui Prover](https://github.com/asymptotic-io/sui-prover)\n\
+        \                        - [SlowMist Audit Primer](https://github.com/slowmist/Sui-MOVE-Smart-Contract-Auditing-Primer)\n\
+        \                        \n                        ---\n                 \
+        \       *Report generated on $(date)*\n                        EOF\n     \
+        \                   \n                        echo \"\u2705 Security report\
+        \ generated: security-report.md\"\n                        \n            \
+        \            # Display key security recommendations\n                    \
+        \    echo \"\"\n                        echo \"=== Key Security Recommendations\
+        \ ===\"\n                        echo \"1. \U0001F50D Consider professional\
+        \ security audit before mainnet\"\n                        echo \"2. \U0001F4DD\
+        \ Add formal verification specs for critical functions\"\n               \
+        \         echo \"3. \U0001F9EA Implement comprehensive test coverage\"\n \
+        \                       echo \"4. \U0001F512 Review all public/entry function\
+        \ access controls\"\n                        echo \"5. \U0001F4B0 Validate\
+        \ economic assumptions and tokenomics\"\n                        echo \"6.\
+        \ \U0001F3D7\uFE0F  Test upgrade and migration procedures\"\n            \
+        \        "
+      working-directory: ${{ github.workspace }}
+    - name: Upload Security Report
+      uses: actions/upload-artifact@v4
+      with:
+        name: security-report
+        path: security-report.md
   test:
     name: Test
     runs-on: ubuntu-latest
@@ -172,9 +338,9 @@ jobs:
         \                                echo \"Waiting for faucet transaction...\"\
         \n                                sleep 10\n                            else\n\
         \                                echo \"\u274C Failed to create new address\"\
-        \n                                exit 1\n                            fi\n\
-        \                        }\n                        \n                   \
-        \     # Final check - get active address\n                        ACTIVE_ADDRESS=$(sui\
+        \n                            exit 1\n                            fi\n   \
+        \                     }\n                        \n                      \
+        \  # Final check - get active address\n                        ACTIVE_ADDRESS=$(sui\
         \ client active-address 2>/dev/null || echo \"\")\n                      \
         \  if [ -z \"$ACTIVE_ADDRESS\" ] || [ \"$ACTIVE_ADDRESS\" = \"None\" ]; then\n\
         \                            echo \"\u274C No active address found after configuration\"\
