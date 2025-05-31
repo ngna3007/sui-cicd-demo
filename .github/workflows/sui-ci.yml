@@ -59,116 +59,7 @@ jobs:
         \ 1)\n                        \n                        # Run tests\n    \
         \                    sui move test\n                    "
       working-directory: ${{ github.workspace }}
-    - name: Setup Sui CLI config
-      if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-      env:
-        SUI_CONFIG: ${{ secrets.SUI_CONFIG }}
-        SUI_KEYSTORE: ${{ secrets.SUI_KEYSTORE }}
-        SUI_ALIASES: ${{ secrets.SUI_ALIASES }}
-      run: "\n                        # Verify sui command is available\n        \
-        \                which sui || (echo \"Sui command not found in PATH\" && exit\
-        \ 1)\n                        \n                        # Create config directory\n\
-        \                        mkdir -p ~/.sui/sui_config\n                    \
-        \    \n                        echo \"Setting up Sui configuration...\"\n\
-        \                        echo \"SUI_CONFIG secret present: $([ -n \"$SUI_CONFIG\"\
-        \ ] && echo \"YES\" || echo \"NO\")\"\n                        echo \"SUI_KEYSTORE\
-        \ secret present: $([ -n \"$SUI_KEYSTORE\" ] && echo \"YES\" || echo \"NO\"\
-        )\"\n                        echo \"SUI_ALIASES secret present: $([ -n \"\
-        $SUI_ALIASES\" ] && echo \"YES\" || echo \"NO\")\"\n                     \
-        \   \n                        if [ -n \"$SUI_CONFIG\" ] && [ -n \"$SUI_KEYSTORE\"\
-        \ ] && [ -n \"$SUI_ALIASES\" ]; then\n                            # Write\
-        \ config file\n                            echo \"Writing SUI_CONFIG to client.yaml...\"\
-        \n                            echo \"$SUI_CONFIG\" > ~/.sui/sui_config/client.yaml\n\
-        \                            echo \"File written. Size: $(wc -c < ~/.sui/sui_config/client.yaml)\
-        \ bytes\"\n                            echo \"\u2705 Written SUI_CONFIG to\
-        \ client.yaml\"\n                            \n                          \
-        \  # Write keystore file\n                            echo \"Writing SUI_KEYSTORE\
-        \ to sui.keystore...\"\n                            echo \"$SUI_KEYSTORE\"\
-        \ > ~/.sui/sui_config/sui.keystore\n                            echo \"File\
-        \ written. Size: $(wc -c < ~/.sui/sui_config/sui.keystore) bytes\"\n     \
-        \                       echo \"\u2705 Written SUI_KEYSTORE\"\n           \
-        \                 \n                            # Write aliases file\n   \
-        \                         echo \"Writing SUI_ALIASES to sui.aliases...\"\n\
-        \                            echo \"$SUI_ALIASES\" > ~/.sui/sui_config/sui.aliases\n\
-        \                            echo \"File written. Size: $(wc -c < ~/.sui/sui_config/sui.aliases)\
-        \ bytes\"\n                            echo \"\u2705 Written SUI_ALIASES\"\
-        \n                            \n                            # Set proper permissions\n\
-        \                            chmod 600 ~/.sui/sui_config/*\n             \
-        \               \n                            # List files to verify they\
-        \ exist\n                            echo \"Files in ~/.sui/sui_config:\"\n\
-        \                            ls -la ~/.sui/sui_config/\n                 \
-        \           \n                            # Show first few lines of each file\
-        \ to verify content\n                            echo \"=== client.yaml (first\
-        \ 5 lines) ===\"\n                            head -5 ~/.sui/sui_config/client.yaml\
-        \ || echo \"Failed to read client.yaml\"\n                            \n \
-        \                           echo \"=== sui.keystore (first 3 lines) ===\"\n\
-        \                            head -3 ~/.sui/sui_config/sui.keystore || echo\
-        \ \"Failed to read sui.keystore\"\n                            \n        \
-        \                    echo \"=== sui.aliases (first 3 lines) ===\"\n      \
-        \                      head -3 ~/.sui/sui_config/sui.aliases || echo \"Failed\
-        \ to read sui.aliases\"\n                            \n                  \
-        \          # Initialize addresses from keystore\n                        \
-        \    echo \"=== Initializing Addresses ===\"\n                           \
-        \ python3 << 'EOF'\nimport json\nimport subprocess\nimport sys\nimport os\n\
-        \ntry:\n    # Check Sui version\n    result = subprocess.run(['sui', '--version'],\
-        \ \n                        capture_output=True, text=True)\n    print(f\"\
-        Sui version: {result.stdout.strip()}\")\n    \n    # Use home directory expansion\
-        \ to get the correct path\n    config_dir = os.path.expanduser('~/.sui/sui_config')\n\
-        \    client_yaml = os.path.join(config_dir, 'client.yaml')\n    keystore_file\
-        \ = os.path.join(config_dir, 'sui.keystore')\n    aliases_file = os.path.join(config_dir,\
-        \ 'sui.aliases')\n    \n    print(f\"Config directory: {config_dir}\")\n \
-        \   print(f\"Checking if files exist:\")\n    print(f\"  client.yaml: {os.path.exists(client_yaml)}\
-        \ (size: {os.path.getsize(client_yaml) if os.path.exists(client_yaml) else\
-        \ 'N/A'})\")\n    print(f\"  sui.keystore: {os.path.exists(keystore_file)}\
-        \ (size: {os.path.getsize(keystore_file) if os.path.exists(keystore_file)\
-        \ else 'N/A'})\")\n    print(f\"  sui.aliases: {os.path.exists(aliases_file)}\
-        \ (size: {os.path.getsize(aliases_file) if os.path.exists(aliases_file) else\
-        \ 'N/A'})\")\n    \n    if os.path.exists(config_dir):\n        print(f\"\
-        Contents of {config_dir}:\")\n        for item in os.listdir(config_dir):\n\
-        \            item_path = os.path.join(config_dir, item)\n            size\
-        \ = os.path.getsize(item_path) if os.path.isfile(item_path) else 'DIR'\n \
-        \           print(f\"  {item} ({size} bytes)\")\n    \n    if not os.path.exists(client_yaml):\n\
-        \        print(\"\u274C client.yaml not found\")\n        sys.exit(1)\n  \
-        \  \n    # Read and fix client.yaml paths using string replacement\n    print(\"\
-        Fixing paths in client.yaml...\")\n    with open(client_yaml, 'r') as f:\n\
-        \        config_content = f.read()\n    \n    print(f\"Original client.yaml\
-        \ content (first 200 chars):\")\n    print(repr(config_content[:200]))\n \
-        \   \n    # Replace the local path with CI path\n    updated_content = config_content.replace(\n\
-        \        '/home/ngocanh/.sui/sui_config/sui.keystore',\n        os.path.join(config_dir,\
-        \ 'sui.keystore')\n    )\n    \n    # Write the updated config back\n    with\
-        \ open(client_yaml, 'w') as f:\n        f.write(updated_content)\n    print(\"\
-        \u2705 Updated keystore path in client.yaml\")\n    \n    # Verify the configuration\
-        \ files are properly set up\n    print(\"Verifying configuration files...\"\
-        )\n    \n    # Check if keystore file exists and is valid\n    if os.path.exists(keystore_file):\n\
-        \        try:\n            with open(keystore_file) as f:\n              \
-        \  keystore = json.load(f)\n            print(f\"\u2705 Keystore loaded with\
-        \ {len(keystore)} keys\")\n        except Exception as e:\n            print(f\"\
-        \u274C Error reading keystore: {e}\")\n            with open(keystore_file)\
-        \ as f:\n                content = f.read()\n            print(f\"Keystore\
-        \ content (first 100 chars): {repr(content[:100])}\")\n            sys.exit(1)\n\
-        \    else:\n        print(\"\u274C Keystore file not found\")\n        sys.exit(1)\n\
-        \    \n    # Check if aliases file exists and is valid\n    if os.path.exists(aliases_file):\n\
-        \        try:\n            with open(aliases_file) as f:\n               \
-        \ aliases = json.load(f)\n            print(f\"\u2705 Aliases loaded with\
-        \ {len(aliases)} entries\")\n        except Exception as e:\n            print(f\"\
-        \u274C Error reading aliases: {e}\")\n            with open(aliases_file)\
-        \ as f:\n                content = f.read()\n            print(f\"Aliases\
-        \ content (first 100 chars): {repr(content[:100])}\")\n            sys.exit(1)\n\
-        \    else:\n        print(\"\u274C Aliases file not found\")\n        sys.exit(1)\n\
-        \    \n    # Try to get current addresses\n    print(\"Checking available\
-        \ addresses...\")\n    try:\n        result = subprocess.run(['sui', 'client',\
-        \ 'addresses'], \n                            capture_output=True, text=True)\n\
-        \        print(f\"Address command return code: {result.returncode}\")\n  \
-        \      if result.stdout:\n            print(f\"stdout: {result.stdout}\")\n\
-        \        if result.stderr:\n            print(f\"stderr: {result.stderr}\"\
-        )\n    except Exception as e:\n        print(f\"Error checking addresses:\
-        \ {e}\")\n\nexcept Exception as e:\n    print(f\"\u274C Configuration setup\
-        \ failed: {e}\")\n    import traceback\n    traceback.print_exc()\n    sys.exit(1)\n\
-        EOF\n                            \n                        else\n        \
-        \                    echo \"\u274C Required secrets missing\"\n          \
-        \                  exit 1\n                        fi\n                  \
-        \  "
-    - name: Deploy to devnet
+    - name: Setup Sui CLI config and Deploy
       if: github.ref == 'refs/heads/main' && github.event_name == 'push'
       env:
         SUI_NETWORK: devnet
@@ -188,14 +79,43 @@ jobs:
         \ \"3. Add SUI_ALIASES secret with your aliases file content\"\n         \
         \                   echo \"4. Fund the wallet with devnet SUI tokens\"\n \
         \                           exit 0\n                        fi\n         \
-        \               \n                        echo \"=== Pre-deployment Checks\
-        \ ===\"\n                        echo \"Current active environment:\"\n  \
-        \                      sui client active-env || {\n                      \
-        \      echo \"\u274C Failed to get active environment\"\n                \
-        \            exit 1\n                        }\n                        \n\
-        \                        echo \"Current active address:\"\n              \
-        \          ACTIVE_ADDRESS=$(sui client active-address 2>/dev/null || echo\
-        \ \"\")\n                        if [ -z \"$ACTIVE_ADDRESS\" ] || [ \"$ACTIVE_ADDRESS\"\
+        \               \n                        # Create config directory\n    \
+        \                    mkdir -p ~/.sui/sui_config\n                        \n\
+        \                        echo \"Setting up Sui configuration...\"\n      \
+        \                  echo \"SUI_CONFIG secret present: $([ -n \"$SUI_CONFIG\"\
+        \ ] && echo \"YES\" || echo \"NO\")\"\n                        echo \"SUI_KEYSTORE\
+        \ secret present: $([ -n \"$SUI_KEYSTORE\" ] && echo \"YES\" || echo \"NO\"\
+        )\"\n                        echo \"SUI_ALIASES secret present: $([ -n \"\
+        $SUI_ALIASES\" ] && echo \"YES\" || echo \"NO\")\"\n                     \
+        \   \n                        # Write config file\n                      \
+        \  echo \"Writing SUI_CONFIG to client.yaml...\"\n                       \
+        \ echo \"$SUI_CONFIG\" > ~/.sui/sui_config/client.yaml\n                 \
+        \       echo \"\u2705 Written SUI_CONFIG to client.yaml\"\n              \
+        \          \n                        # Write keystore file\n             \
+        \           echo \"Writing SUI_KEYSTORE to sui.keystore...\"\n           \
+        \             echo \"$SUI_KEYSTORE\" > ~/.sui/sui_config/sui.keystore\n  \
+        \                      echo \"\u2705 Written SUI_KEYSTORE\"\n            \
+        \            \n                        # Write aliases file\n            \
+        \            echo \"Writing SUI_ALIASES to sui.aliases...\"\n            \
+        \            echo \"$SUI_ALIASES\" > ~/.sui/sui_config/sui.aliases\n     \
+        \                   echo \"\u2705 Written SUI_ALIASES\"\n                \
+        \        \n                        # Set proper permissions\n            \
+        \            chmod 600 ~/.sui/sui_config/*\n                        \n   \
+        \                     # Fix the keystore path in client.yaml\n           \
+        \             echo \"Fixing keystore path in client.yaml...\"\n          \
+        \              sed -i 's|/home/ngocanh/.sui/sui_config/sui.keystore|/home/runner/.sui/sui_config/sui.keystore|g'\
+        \ ~/.sui/sui_config/client.yaml\n                        echo \"\u2705 Updated\
+        \ keystore path\"\n                        \n                        # List\
+        \ files to verify they exist\n                        echo \"Files in ~/.sui/sui_config:\"\
+        \n                        ls -la ~/.sui/sui_config/\n                    \
+        \    \n                        echo \"=== Pre-deployment Checks ===\"\n  \
+        \                      echo \"Current active environment:\"\n            \
+        \            sui client active-env || {\n                            echo\
+        \ \"\u274C Failed to get active environment\"\n                          \
+        \  exit 1\n                        }\n                        \n         \
+        \               echo \"Current active address:\"\n                       \
+        \ ACTIVE_ADDRESS=$(sui client active-address 2>/dev/null || echo \"\")\n \
+        \                       if [ -z \"$ACTIVE_ADDRESS\" ] || [ \"$ACTIVE_ADDRESS\"\
         \ = \"None\" ]; then\n                            echo \"\u274C No active\
         \ address found.\"\n                            echo \"Available addresses:\"\
         \n                            sui client addresses || echo \"No addresses\
