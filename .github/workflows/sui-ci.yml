@@ -68,72 +68,90 @@ jobs:
         \ mkdir -p ~/.sui/sui_config\n                        \n                 \
         \       if [ -n \"${{ secrets.SUI_CONFIG }}\" ]; then\n                  \
         \          echo \"${{ secrets.SUI_CONFIG }}\" > ~/.sui/sui_config/client.yaml\n\
-        \                        else\n                            echo \"Warning:\
-        \ SUI_CONFIG secret is not set. Creating default config...\"\n           \
-        \                 \n                            # Generate keypair with error\
-        \ handling\n                            if ! sui keytool generate ed25519\
-        \ > key.txt 2>&1; then\n                                echo \"\u274C Failed\
-        \ to generate Sui keypair\"\n                                cat key.txt 2>/dev/null\
-        \ || true\n                                exit 1\n                      \
-        \      fi\n                            \n                            # Extract\
-        \ address with better error handling\n                            ADDRESS=$(grep\
-        \ -oP 'address: \\K[^ ]+' key.txt)\n                            if [ -z \"\
-        $ADDRESS\" ]; then\n                                echo \"\u274C Failed to\
-        \ extract address from keypair output\"\n                                cat\
-        \ key.txt\n                                exit 1\n                      \
-        \      fi\n                            \n                            # Read\
-        \ keystore content\n                            KEYSTORE=$(cat key.txt)\n\
-        \                            \n                            # Create config\
-        \ with the generated address\n                            cat > ~/.sui/sui_config/client.yaml\
-        \ << EOL\n---\nkeystore:\n    File: ~/.sui/sui_config/sui.keystore\nenvs:\n\
-        \    testnet:\n        url: \"https://fullnode.testnet.sui.io:443\"\n    \
-        \    ws-url: \"wss://fullnode.testnet.sui.io:443\"\nactive_env: testnet\n\
-        active_address: \"${ADDRESS}\"\nEOL\n                        \n          \
-        \              # Save keystore\n                        echo \"${KEYSTORE}\"\
-        \ > ~/.sui/sui_config/sui.keystore\n                        \n           \
-        \             # Cleanup\n                        rm key.txt\n            \
-        \            \n                        echo \"\u2705 Generated new Sui configuration\
-        \ with address: ${ADDRESS}\"\n                    fi\n                   \
-        \ \n                    # Display config for debugging (excluding sensitive\
-        \ data)\n                    echo \"Current Sui config (active_address and\
-        \ endpoints):\"\n                    grep -E 'active_address|url:|ws-url:'\
-        \ ~/.sui/sui_config/client.yaml || true\n                "
+        \                            echo \"\u2705 Using provided SUI_CONFIG\"\n \
+        \                       else\n                            echo \"Warning:\
+        \ SUI_CONFIG secret is not set. Skipping deployment setup...\"\n         \
+        \                   echo \"\u26A0\uFE0F  To enable deployment, add SUI_CONFIG\
+        \ secret with your wallet configuration\"\n                            \n\
+        \                            # Create a minimal config file for reference\n\
+        \                            echo \"---\" > ~/.sui/sui_config/client.yaml\n\
+        \                            echo \"keystore:\" >> ~/.sui/sui_config/client.yaml\n\
+        \                            echo \"    File: ~/.sui/sui_config/sui.keystore\"\
+        \ >> ~/.sui/sui_config/client.yaml\n                            echo \"envs:\"\
+        \ >> ~/.sui/sui_config/client.yaml\n                            echo \"  \
+        \  testnet:\" >> ~/.sui/sui_config/client.yaml\n                         \
+        \   echo '        url: \"https://fullnode.testnet.sui.io:443\"' >> ~/.sui/sui_config/client.yaml\n\
+        \                            echo '        ws-url: \"wss://fullnode.testnet.sui.io:443\"\
+        ' >> ~/.sui/sui_config/client.yaml\n                            echo \"active_env:\
+        \ testnet\" >> ~/.sui/sui_config/client.yaml\n                           \
+        \ echo \"active_address: null\" >> ~/.sui/sui_config/client.yaml\n       \
+        \                     \n                            # Create empty keystore\n\
+        \                            touch ~/.sui/sui_config/sui.keystore\n      \
+        \                      \n                            echo \"\u2705 Created\
+        \ minimal config file\"\n                        fi\n                    \
+        \    \n                        # Display config for debugging\n          \
+        \              echo \"Current Sui config:\"\n                        if [\
+        \ -f ~/.sui/sui_config/client.yaml ]; then\n                            echo\
+        \ \"Config file exists:\"\n                            grep -E 'active_address|url:|ws-url:|active_env:'\
+        \ ~/.sui/sui_config/client.yaml || echo \"No matching config lines found\"\
+        \n                        else\n                            echo \"\u274C\
+        \ Config file not found\"\n                        fi\n                  \
+        \  "
     - name: Deploy to testnet
-      if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+      if: github.ref == 'refs/heads/main' && github.event_name == 'push' && secrets.SUI_CONFIG
+        != ''
       env:
         SUI_NETWORK: testnet
         DEPLOYER_MNEMONIC: ${{ secrets.DEPLOYER_MNEMONIC }}
-      run: "\n                    # Verify sui command is available\n            \
-        \        which sui || (echo \"Sui command not found in PATH\" && exit 1)\n\
-        \                    \n                    echo \"Current active address:\"\
-        \n                    sui client active-address || true\n                \
-        \    \n                    # Check if we have gas before attempting deployment\n\
-        \                    echo \"Checking gas balance...\"\n                  \
-        \  sui client gas || true\n                    \n                    echo\
-        \ \"Publishing package...\"\n                    if sui client publish --gas-budget\
-        \ 100000000; then\n                        echo \"\u2705 Package published\
-        \ successfully\"\n                    else\n                        echo \"\
-        \u274C Deployment failed\"\n                        echo \"This might be due\
-        \ to insufficient gas or network issues\"\n                        exit 1\n\
-        \                    fi\n                "
+      run: "\n                        # Verify sui command is available\n        \
+        \                which sui || (echo \"Sui command not found in PATH\" && exit\
+        \ 1)\n                        \n                        echo \"Current active\
+        \ address:\"\n                        sui client active-address || {\n   \
+        \                         echo \"\u274C No active address found. Please check\
+        \ your SUI_CONFIG secret.\"\n                            exit 1\n        \
+        \                }\n                        \n                        # Check\
+        \ if we have gas before attempting deployment\n                        echo\
+        \ \"Checking gas balance...\"\n                        sui client gas || {\n\
+        \                            echo \"\u274C Failed to check gas balance. Address\
+        \ may not be funded.\"\n                            echo \"Please fund your\
+        \ address with testnet SUI tokens before deployment.\"\n                 \
+        \           exit 1\n                        }\n                        \n\
+        \                        echo \"Publishing package...\"\n                \
+        \        if sui client publish --gas-budget 100000000; then\n            \
+        \                echo \"\u2705 Package published successfully\"\n        \
+        \                else\n                            echo \"\u274C Deployment\
+        \ failed\"\n                            echo \"This might be due to insufficient\
+        \ gas or network issues\"\n                            exit 1\n          \
+        \              fi\n                    "
+    - name: Skip deployment notification
+      if: github.ref == 'refs/heads/main' && github.event_name == 'push' && secrets.SUI_CONFIG
+        == ''
+      run: "\n                        echo \"\u26A0\uFE0F  Deployment skipped: SUI_CONFIG\
+        \ secret is not configured\"\n                        echo \"To enable deployment:\"\
+        \n                        echo \"1. Create a Sui wallet\"\n              \
+        \          echo \"2. Export the wallet config\"\n                        echo\
+        \ \"3. Add it as SUI_CONFIG secret in GitHub repository settings\"\n     \
+        \                   echo \"4. Fund the wallet with testnet SUI tokens\"\n\
+        \                    "
     - name: Verify deployment
       if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-      run: "\n                    # Verify sui command is available\n            \
-        \        which sui || (echo \"Sui command not found in PATH\" && exit 1)\n\
-        \                    \n                    # Get the latest transaction status\n\
-        \                    echo \"Checking recent transactions...\"\n          \
-        \          sui client transactions --limit 5 || true\n                   \
-        \ \n                    LATEST_TX=$(sui client transactions --limit 1 | tail\
-        \ -n 1 | awk '{print $1}' 2>/dev/null || echo \"\")\n                    if\
-        \ [ -n \"$LATEST_TX\" ] && [ \"$LATEST_TX\" != \"digest\" ]; then\n      \
-        \                  echo \"Verifying transaction: $LATEST_TX\"\n          \
-        \              # Check transaction status\n                        if sui\
-        \ client transaction \"$LATEST_TX\" | grep -q \"Status.*Success\"; then\n\
-        \                            echo \"\u2705 Deployment verified successfully\"\
-        \n                        else\n                            echo \"\u274C\
-        \ Deployment verification failed\"\n                            sui client\
-        \ transaction \"$LATEST_TX\" || true\n                            exit 1\n\
-        \                        fi\n                    else\n                  \
-        \      echo \"\u26A0\uFE0F  No recent transaction found to verify, but deployment\
-        \ may have succeeded\"\n                        echo \"Check the Sui explorer\
-        \ for your package deployment\"\n                    fi\n                "
+      run: "\n                        # Verify sui command is available\n        \
+        \                which sui || (echo \"Sui command not found in PATH\" && exit\
+        \ 1)\n                        \n                        # Get the latest transaction\
+        \ status\n                        echo \"Checking recent transactions...\"\
+        \n                        sui client transactions --limit 5 || true\n    \
+        \                    \n                        LATEST_TX=$(sui client transactions\
+        \ --limit 1 | tail -n 1 | awk '{print $1}' 2>/dev/null || echo \"\")\n   \
+        \                     if [ -n \"$LATEST_TX\" ] && [ \"$LATEST_TX\" != \"digest\"\
+        \ ]; then\n                            echo \"Verifying transaction: $LATEST_TX\"\
+        \n                            # Check transaction status\n               \
+        \             if sui client transaction \"$LATEST_TX\" | grep -q \"Status.*Success\"\
+        ; then\n                                echo \"\u2705 Deployment verified\
+        \ successfully\"\n                            else\n                     \
+        \           echo \"\u274C Deployment verification failed\"\n             \
+        \                   sui client transaction \"$LATEST_TX\" || true\n      \
+        \                          exit 1\n                            fi\n      \
+        \                  else\n                            echo \"\u26A0\uFE0F \
+        \ No recent transaction found to verify, but deployment may have succeeded\"\
+        \n                            echo \"Check the Sui explorer for your package\
+        \ deployment\"\n                        fi\n                    "
