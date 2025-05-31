@@ -25,7 +25,7 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v3.5.3
-    - name: Install Sui
+    - name: Install Sui CLI
       run: "\n                        /bin/bash -c \"$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\"\
         \n                        echo 'eval \"$(/home/linuxbrew/.linuxbrew/bin/brew\
         \ shellenv)\"' >> /home/runner/.profile\n                        echo 'eval\
@@ -57,8 +57,16 @@ jobs:
     - name: Install Rust
       uses: dtolnay/rust-toolchain@stable
     - name: Install Sui CLI
-      run: cargo install --locked --git https://github.com/MystenLabs/sui.git --branch
-        ${{ env.SUI_BRANCH || 'devnet' }} sui
+      run: "\n                        /bin/bash -c \"$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\"\
+        \n                        echo 'eval \"$(/home/linuxbrew/.linuxbrew/bin/brew\
+        \ shellenv)\"' >> /home/runner/.profile\n                        echo 'eval\
+        \ \"$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)\"' >> /home/runner/.bashrc\n\
+        \                        source /home/runner/.profile\n                  \
+        \      eval \"$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)\"\n        \
+        \                sudo apt-get update\n                        sudo apt-get\
+        \ install -y build-essential\n                        brew install gcc\n \
+        \                       eval \"$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)\"\
+        \n                        brew install sui\n                    "
     - name: Download gas report
       uses: actions/download-artifact@v4
       with:
