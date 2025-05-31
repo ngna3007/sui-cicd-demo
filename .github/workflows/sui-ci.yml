@@ -53,7 +53,7 @@ jobs:
       run: sui move test --gas-status > gas_report.txt && echo "Gas profiling results
         saved to gas_report.txt"
     - name: Upload gas report
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: gas-report
         path: gas_report.txt
@@ -72,7 +72,7 @@ jobs:
       run: cargo install --locked --git https://github.com/MystenLabs/sui.git --branch
         ${{ env.SUI_BRANCH || 'devnet' }} sui
     - name: Download gas report
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: gas-report
         path: gas-reports
