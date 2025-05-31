@@ -60,10 +60,10 @@ jobs:
         \                         echo \"Warning: SUI_CONFIG secret is not set. Creating\
         \ default config...\"\n                            \n                    \
         \        # Generate keypair first\n                            sui keytool\
-        \ generate > key.txt\n                            ADDRESS=$(grep -oP 'address:\
-        \ \\K[^ ]+' key.txt)\n                            KEYSTORE=$(cat key.txt)\n\
-        \                            \n                            # Create config\
-        \ with the generated address\n                            cat > ~/.sui/sui_config/client.yaml\
+        \ generate ed25519 > key.txt\n                            ADDRESS=$(grep -oP\
+        \ 'address: \\K[^ ]+' key.txt)\n                            KEYSTORE=$(cat\
+        \ key.txt)\n                            \n                            # Create\
+        \ config with the generated address\n                            cat > ~/.sui/sui_config/client.yaml\
         \ << EOL\n---\nkeystore:\n    File: ~/.sui/sui_config/sui.keystore\nenvs:\n\
         \    testnet:\n        url: \"https://fullnode.testnet.sui.io:443\"\n    \
         \    ws-url: \"wss://fullnode.testnet.sui.io:443\"\nactive_env: testnet\n\
