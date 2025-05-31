@@ -1,0 +1,47 @@
+name: Sui Smart Contract CI/CD
+'on':
+  push:
+    branches:
+    - main
+    - develop
+  pull_request:
+    branches:
+    - main
+    - develop
+env:
+  RUST_BACKTRACE: '1'
+  SUI_LOG_LEVEL: info
+jobs:
+  build-and-test:
+    name: Setup Build Environment
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os:
+        - ubuntu-latest
+        rust:
+        - stable
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+    - name: Install Rust
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: ${{ matrix.rust }}
+        override: true
+    - name: Install Sui CLI
+      run: cargo install --locked --git https://github.com/MystenLabs/sui.git --branch
+        devnet sui
+  deploy:
+    name: Deploy to Testnet
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    needs: Build and Test
+    runs-on: ubuntu-latest
+    steps:
+    - name: Setup Sui CLI config
+      run: mkdir -p ~/.sui/sui_config && echo "${{ secrets.SUI_CONFIG }}" > ~/.sui/sui_config/client.yaml
+    - name: Deploy to testnet
+      env:
+        SUI_NETWORK: testnet
+        DEPLOYER_MNEMONIC: ${{ secrets.DEPLOYER_MNEMONIC }}
+      run: sui client switch --env testnet && sui move build --install
