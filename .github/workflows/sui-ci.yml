@@ -54,53 +54,58 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-    - name: Install Homebrew
-      run: "\n                        /bin/bash -c \"$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\"\
+    - name: Install Homebrew and Sui
+      run: "\n                        # Install Homebrew\n                       \
+        \ /bin/bash -c \"$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\"\
         \n                        echo 'eval \"$(/home/linuxbrew/.linuxbrew/bin/brew\
         \ shellenv)\"' >> /home/runner/.profile\n                        echo 'eval\
         \ \"$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)\"' >> /home/runner/.bashrc\n\
-        \                        source /home/runner/.profile\n                  \
-        \  "
-    - name: Install Build Dependencies
-      run: "\n                        eval \"$(/home/linuxbrew/.linuxbrew/bin/brew\
-        \ shellenv)\"\n                        sudo apt-get update\n             \
-        \           sudo apt-get install -y build-essential\n                    \
-        \    brew install gcc\n                    "
-    - name: Install Sui CLI
-      run: "\n                        eval \"$(/home/linuxbrew/.linuxbrew/bin/brew\
-        \ shellenv)\"\n                        brew install sui\n                \
-        \    "
+        \                        eval \"$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)\"\
+        \n                        \n                        # Install dependencies\n\
+        \                        sudo apt-get update\n                        sudo\
+        \ apt-get install -y build-essential\n                        brew install\
+        \ gcc\n                        \n                        # Install Sui\n \
+        \                       brew install sui\n                        \n     \
+        \                   # Verify Sui installation\n                        sui\
+        \ --version\n                    "
     - name: Setup Sui CLI config
       run: "\n                        eval \"$(/home/linuxbrew/.linuxbrew/bin/brew\
-        \ shellenv)\"\n                        if [ -n \"${{ secrets.SUI_CONFIG }}\"\
-        \ ]; then\n                            mkdir -p ~/.sui/sui_config\n      \
-        \                      echo \"${{ secrets.SUI_CONFIG }}\" > ~/.sui/sui_config/client.yaml\n\
-        \                        else\n                            echo \"Warning:\
-        \ SUI_CONFIG secret is not set. Creating default config...\"\n           \
-        \                 mkdir -p ~/.sui/sui_config\n                           \
-        \ cat > ~/.sui/sui_config/client.yaml <<EOL\n---\nkeystore:\n    File: ~/.sui/sui_config/sui.keystore\n\
-        envs:\n    testnet:\n        url: \"https://fullnode.testnet.sui.io:443\"\n\
-        \        ws-url: \"wss://fullnode.testnet.sui.io:443\"\nactive_env: testnet\n\
-        active_address: null\nEOL\n                            \n                \
-        \            # Generate new keypair\n                            sui keytool\
-        \ generate ed25519 > ~/.sui/sui_config/sui.keystore\n                    \
-        \    fi\n                        \n                        # Display config\
-        \ for debugging\n                        echo \"Current Sui config:\"\n  \
-        \                      cat ~/.sui/sui_config/client.yaml\n               \
-        \     "
+        \ shellenv)\"\n                        \n                        # Create\
+        \ config directory\n                        mkdir -p ~/.sui/sui_config\n \
+        \                       \n                        if [ -n \"${{ secrets.SUI_CONFIG\
+        \ }}\" ]; then\n                            echo \"${{ secrets.SUI_CONFIG\
+        \ }}\" > ~/.sui/sui_config/client.yaml\n                        else\n   \
+        \                         echo \"Warning: SUI_CONFIG secret is not set. Creating\
+        \ default config...\"\n                            \n                    \
+        \        # Generate keypair first\n                            sui keytool\
+        \ generate ed25519 > key.txt\n                            ADDRESS=$(grep -oP\
+        \ 'address: \\K[^ ]+' key.txt)\n                            KEYSTORE=$(cat\
+        \ key.txt)\n                            \n                            # Create\
+        \ config with the generated address\n                            cat > ~/.sui/sui_config/client.yaml\
+        \ << EOL\n---\nkeystore:\n    File: ~/.sui/sui_config/sui.keystore\nenvs:\n\
+        \    testnet:\n        url: \"https://fullnode.testnet.sui.io:443\"\n    \
+        \    ws-url: \"wss://fullnode.testnet.sui.io:443\"\nactive_env: testnet\n\
+        active_address: \"${ADDRESS}\"\nEOL\n                            \n      \
+        \                      # Save keystore\n                            echo \"\
+        ${KEYSTORE}\" > ~/.sui/sui_config/sui.keystore\n                         \
+        \   \n                            # Cleanup\n                            rm\
+        \ key.txt\n                        fi\n                        \n        \
+        \                # Display config for debugging (excluding sensitive data)\n\
+        \                        echo \"Current Sui config (active_address and endpoints):\"\
+        \n                        grep -E 'active_address|url:|ws-url:' ~/.sui/sui_config/client.yaml\
+        \ || true\n                    "
     - name: Deploy to testnet
       env:
         SUI_NETWORK: testnet
         DEPLOYER_MNEMONIC: ${{ secrets.DEPLOYER_MNEMONIC }}
       run: "\n                        eval \"$(/home/linuxbrew/.linuxbrew/bin/brew\
-        \ shellenv)\"\n                        # Set active environment\n        \
-        \                sui client switch --env testnet\n                       \
-        \ \n                        # Show current address for debugging\n       \
-        \                 sui client active-address\n                        \n  \
-        \                      # Publish package\n                        sui client\
-        \ publish --gas-budget 100000000 || {\n                            echo \"\
-        \u274C Deployment failed\"\n                            exit 1\n         \
-        \               }\n                    "
+        \ shellenv)\"\n                        \n                        echo \"Current\
+        \ active address:\"\n                        sui client active-address ||\
+        \ true\n                        \n                        echo \"Publishing\
+        \ package...\"\n                        sui client publish --gas-budget 100000000\
+        \ || {\n                            echo \"\u274C Deployment failed\"\n  \
+        \                          exit 1\n                        }\n           \
+        \         "
     - name: Verify deployment
       run: "\n                        eval \"$(/home/linuxbrew/.linuxbrew/bin/brew\
         \ shellenv)\"\n                        # Get the latest transaction status\n\
