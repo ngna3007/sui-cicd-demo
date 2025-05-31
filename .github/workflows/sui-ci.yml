@@ -84,18 +84,20 @@ jobs:
         \      fi\n                            \n                            # Read\
         \ keystore content\n                            KEYSTORE=$(cat key.txt)\n\
         \                            \n                            # Create config\
-        \ with the generated address\n                            cat > ~/.sui/sui_config/client.yaml\
-        \ << EOL\n    ---\n    keystore:\n        File: ~/.sui/sui_config/sui.keystore\n\
-        \    envs:\n        testnet:\n            url: \"https://fullnode.testnet.sui.io:443\"\
-        \n            ws-url: \"wss://fullnode.testnet.sui.io:443\"\n    active_env:\
-        \ testnet\n    active_address: \"${ADDRESS}\"\n    EOL\n                 \
-        \           \n                            # Save keystore\n              \
-        \              echo \"${KEYSTORE}\" > ~/.sui/sui_config/sui.keystore\n   \
-        \                         \n                            # Cleanup\n      \
-        \                      rm key.txt\n                            \n        \
-        \                    echo \"\u2705 Generated new Sui configuration with address:\
-        \ ${ADDRESS}\"\n                        fi\n                        \n   \
-        \                     # Display config for debugging (excluding sensitive\
+        \ with the generated address (fixing heredoc syntax)\n                   \
+        \         cat > ~/.sui/sui_config/client.yaml << 'EOFCONFIG'\n---\nkeystore:\n\
+        \    File: ~/.sui/sui_config/sui.keystore\nenvs:\n    testnet:\n        url:\
+        \ \"https://fullnode.testnet.sui.io:443\"\n        ws-url: \"wss://fullnode.testnet.sui.io:443\"\
+        \nactive_env: testnet\nactive_address: \"${ADDRESS}\"\nEOFCONFIG\n\n     \
+        \                       # Replace placeholder with actual address\n      \
+        \                      sed -i \"s/\\${ADDRESS}/${ADDRESS}/g\" ~/.sui/sui_config/client.yaml\n\
+        \                            \n                            # Save keystore\n\
+        \                            echo \"${KEYSTORE}\" > ~/.sui/sui_config/sui.keystore\n\
+        \                            \n                            # Cleanup\n   \
+        \                         rm key.txt\n                            \n     \
+        \                       echo \"\u2705 Generated new Sui configuration with\
+        \ address: ${ADDRESS}\"\n                        fi\n                    \
+        \    \n                        # Display config for debugging (excluding sensitive\
         \ data)\n                        echo \"Current Sui config (active_address\
         \ and endpoints):\"\n                        grep -E 'active_address|url:|ws-url:'\
         \ ~/.sui/sui_config/client.yaml || true\n                    "
