@@ -135,11 +135,11 @@ jobs:
         ))))' 2>/dev/null || echo \"0\")\n                                echo \"\u2705\
         \ New keystore is valid JSON with $KEY_COUNT keys\"\n                    \
         \            \n                                # Show key structure (non-sensitive\
-        \ parts)\n                                python3 -c \"\nimport json\nwith\
-        \ open('/home/runner/.sui/sui_config/sui.keystore') as f:\n    keys = json.load(f)\n\
-        \    for i, key in enumerate(keys):\n        print(f'Key {i+1}: alias={key.get(\"\
+        \ parts)\n                                python3 -c '\nimport json\nwith\
+        \ open(\"/home/runner/.sui/sui_config/sui.keystore\") as f:\n    keys = json.load(f)\n\
+        \    for i, key in enumerate(keys):\n        print(f\"Key {i+1}: alias={key.get(\"\
         alias\", \"unknown\")}, has_data={\"data\" in key and key[\"data\"].startswith(\"\
-        suiprivkey\")}, has_public_key={\"public_key\" in key}')\n\"\n           \
+        suiprivkey\")}, has_public_key={\"public_key\" in key}\")\n'\n           \
         \                 else\n                                echo \"\u274C New\
         \ keystore is not valid JSON\"\n                                exit 1\n \
         \                           fi\n                            \n           \
