@@ -76,71 +76,57 @@ jobs:
         )\"\n                        echo \"SUI_ALIASES secret present: $([ -n \"\
         $SUI_ALIASES\" ] && echo \"YES\" || echo \"NO\")\"\n                     \
         \   \n                        if [ -n \"$SUI_CONFIG\" ] && [ -n \"$SUI_KEYSTORE\"\
-        \ ] && [ -n \"$SUI_ALIASES\" ]; then\n                            # Write\
-        \ config file\n                            echo \"$SUI_CONFIG\" > ~/.sui/sui_config/client.yaml\n\
-        \                            echo \"\u2705 Written SUI_CONFIG to client.yaml\"\
-        \n                            \n                            # Write keystore\
-        \ file\n                            echo \"$SUI_KEYSTORE\" > ~/.sui/sui_config/sui.keystore\n\
-        \                            echo \"\u2705 Written SUI_KEYSTORE\"\n      \
-        \                      \n                            # Write aliases file\n\
-        \                            echo \"$SUI_ALIASES\" > ~/.sui/sui_config/sui.aliases\n\
-        \                            echo \"\u2705 Written SUI_ALIASES\"\n       \
-        \                     \n                            # Set proper permissions\n\
-        \                            chmod 600 ~/.sui/sui_config/*\n             \
-        \               \n                            # Initialize addresses from\
-        \ keystore\n                            echo \"=== Initializing Addresses\
-        \ ===\"\n                            python3 << 'EOF'\nimport json\nimport\
-        \ subprocess\nimport sys\n\ntry:\n    # Check Sui version\n    result = subprocess.run(['sui',\
-        \ '--version'], \n                        capture_output=True, text=True)\n\
-        \    print(f\"Sui version: {result.stdout.strip()}\")\n    \n    # Read keystore\
-        \ and aliases\n    with open('/home/runner/.sui/sui_config/sui.keystore')\
-        \ as f:\n        keystore = json.load(f)\n    with open('/home/runner/.sui/sui_config/sui.aliases')\
-        \ as f:\n        aliases = json.load(f)\n    \n    print(f\"Found {len(keystore)}\
-        \ keys in keystore\")\n    print(f\"Found {len(aliases)} aliases\")\n    \n\
-        \    # Get current addresses\n    try:\n        result = subprocess.run(['sui',\
-        \ 'client', 'addresses'], \n                            capture_output=True,\
-        \ text=True)\n        current_addresses = result.stdout\n    except Exception\
-        \ as e:\n        print(f\"Error getting addresses: {e}\")\n        current_addresses\
-        \ = \"\"\n    \n    # If no addresses, create them from keystore and aliases\n\
-        \    if \"No managed addresses\" in current_addresses or not current_addresses.strip():\n\
-        \        print(\"Creating addresses from keystore...\")\n        for alias_entry\
-        \ in aliases:\n            alias = alias_entry.get('alias', '')\n        \
-        \    pubkey_base64 = alias_entry.get('public_key_base64', '')\n          \
-        \  \n            if pubkey_base64:\n                print(f\"Creating address\
-        \ for {alias}\")\n                try:\n                    # Import the key\
-        \ directly using the keystore file\n                    with open('/home/runner/.sui/sui_config/temp_key.b64',\
-        \ 'w') as f:\n                        f.write(pubkey_base64)\n           \
-        \         \n                    # Import the key using the import command\n\
-        \                    subprocess.run(['sui', 'keytool', 'import', \n      \
-        \                          '/home/runner/.sui/sui_config/temp_key.b64',\n\
-        \                                'ed25519',\n                            \
-        \    alias], \n                                check=True)\n             \
-        \       \n                    # Clean up temp file\n                    subprocess.run(['rm',\
-        \ '/home/runner/.sui/sui_config/temp_key.b64'])\n                    \n  \
-        \              except subprocess.CalledProcessError as e:\n              \
-        \      print(f\"Error creating address: {e}\")\n    \n    # Set first address\
-        \ as active if none is set\n    result = subprocess.run(['sui', 'client',\
-        \ 'active-address'],\n                        capture_output=True, text=True)\n\
-        \    active_address = result.stdout.strip()\n    \n    if not active_address\
-        \ or active_address == \"None\":\n        print(\"Setting first address as\
-        \ active...\")\n        try:\n            # Get first address\n          \
-        \  result = subprocess.run(['sui', 'client', 'addresses'],\n             \
-        \                   capture_output=True, text=True)\n            addresses\
-        \ = [line.split()[0] for line in result.stdout.splitlines() \n           \
-        \             if line.startswith('0x')]\n            \n            if addresses:\n\
-        \                subprocess.run(['sui', 'client', 'switch', '--address', addresses[0]],\n\
-        \                            check=True)\n                print(f\"Set active\
-        \ address to: {addresses[0]}\")\n            else:\n                print(\"\
-        No addresses available to set as active\")\n        except Exception as e:\n\
-        \            print(f\"Error setting active address: {e}\")\n            sys.exit(1)\n\
-        \nexcept Exception as e:\n    print(f\"\u274C Address initialization failed:\
-        \ {e}\")\n    sys.exit(1)\nEOF\n                            \n           \
-        \                 # Verify setup\n                            echo \"=== Verification\
-        \ ===\"\n                            echo \"Active environment:\"\n      \
-        \                      sui client active-env || exit 1\n                 \
-        \           \n                            echo \"Available addresses:\"\n\
-        \                            sui client addresses || exit 1\n            \
-        \                \n                            echo \"Active address:\"\n\
+        \ ] && [ -n \"$SUI_ALIASES\" ]; then\n                            # Initialize\
+        \ addresses from keystore\n                            echo \"=== Initializing\
+        \ Addresses ===\"\n                            python3 << 'EOF'\nimport json\n\
+        import subprocess\nimport sys\nimport yaml\n\ntry:\n    # Check Sui version\n\
+        \    result = subprocess.run(['sui', '--version'], \n                    \
+        \    capture_output=True, text=True)\n    print(f\"Sui version: {result.stdout.strip()}\"\
+        )\n    \n    # Read and fix client.yaml paths\n    print(\"Fixing paths in\
+        \ client.yaml...\")\n    with open('/home/runner/.sui/sui_config/client.yaml')\
+        \ as f:\n        config = yaml.safe_load(f)\n    \n    # Update the keystore\
+        \ path to the CI environment path\n    if 'keystore' in config and 'File'\
+        \ in config['keystore']:\n        config['keystore']['File'] = '/home/runner/.sui/sui_config/sui.keystore'\n\
+        \        print(\"Updated keystore path in client.yaml\")\n    \n    # Write\
+        \ the updated config back\n    with open('/home/runner/.sui/sui_config/client.yaml',\
+        \ 'w') as f:\n        yaml.safe_dump(config, f, default_flow_style=False)\n\
+        \    \n    # Verify the configuration files are properly set up\n    print(\"\
+        Verifying configuration files...\")\n    \n    # Check if keystore file exists\
+        \ and is valid\n    try:\n        with open('/home/runner/.sui/sui_config/sui.keystore')\
+        \ as f:\n            keystore = json.load(f)\n        print(f\"\u2705 Keystore\
+        \ loaded with {len(keystore)} keys\")\n    except Exception as e:\n      \
+        \  print(f\"\u274C Error reading keystore: {e}\")\n        sys.exit(1)\n \
+        \   \n    # Check if aliases file exists and is valid\n    try:\n        with\
+        \ open('/home/runner/.sui/sui_config/sui.aliases') as f:\n            aliases\
+        \ = json.load(f)\n        print(f\"\u2705 Aliases loaded with {len(aliases)}\
+        \ entries\")\n    except Exception as e:\n        print(f\"\u274C Error reading\
+        \ aliases: {e}\")\n        sys.exit(1)\n    \n    # Check current addresses\
+        \ (should work now with correct paths)\n    print(\"Checking available addresses...\"\
+        )\n    try:\n        result = subprocess.run(['sui', 'client', 'addresses'],\
+        \ \n                            capture_output=True, text=True)\n        if\
+        \ result.returncode == 0:\n            print(\"\u2705 Address command succeeded\"\
+        )\n            addresses_output = result.stdout.strip()\n            if addresses_output\
+        \ and \"No managed addresses\" not in addresses_output:\n                print(f\"\
+        Available addresses:\n{addresses_output}\")\n            else:\n         \
+        \       print(\"No addresses found in output\")\n        else:\n         \
+        \   print(f\"\u274C Address command failed: {result.stderr}\")\n    except\
+        \ Exception as e:\n        print(f\"Error checking addresses: {e}\")\n   \
+        \ \n    # Try to get active address\n    try:\n        result = subprocess.run(['sui',\
+        \ 'client', 'active-address'],\n                            capture_output=True,\
+        \ text=True)\n        if result.returncode == 0:\n            active_address\
+        \ = result.stdout.strip()\n            if active_address and active_address\
+        \ != \"None\":\n                print(f\"\u2705 Active address: {active_address}\"\
+        )\n            else:\n                print(\"No active address set\")\n \
+        \       else:\n            print(f\"\u274C Failed to get active address: {result.stderr}\"\
+        )\n    except Exception as e:\n        print(f\"Error getting active address:\
+        \ {e}\")\n\nexcept Exception as e:\n    print(f\"\u274C Configuration setup\
+        \ failed: {e}\")\n    sys.exit(1)\nEOF\n                            \n   \
+        \                         # Verify setup\n                            echo\
+        \ \"=== Verification ===\"\n                            echo \"Active environment:\"\
+        \n                            sui client active-env || exit 1\n          \
+        \                  \n                            echo \"Available addresses:\"\
+        \n                            sui client addresses || exit 1\n           \
+        \                 \n                            echo \"Active address:\"\n\
         \                            sui client active-address || exit 1\n       \
         \                     \n                        else\n                   \
         \         echo \"\u274C Required secrets missing\"\n                     \
