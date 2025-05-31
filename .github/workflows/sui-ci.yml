@@ -98,14 +98,23 @@ jobs:
         \ Config file not found\"\n                        fi\n                  \
         \  "
     - name: Deploy to testnet
-      if: github.ref == 'refs/heads/main' && github.event_name == 'push' && secrets.SUI_CONFIG
-        != ''
+      if: github.ref == 'refs/heads/main' && github.event_name == 'push'
       env:
         SUI_NETWORK: testnet
         DEPLOYER_MNEMONIC: ${{ secrets.DEPLOYER_MNEMONIC }}
+        SUI_CONFIG: ${{ secrets.SUI_CONFIG }}
       run: "\n                        # Verify sui command is available\n        \
         \                which sui || (echo \"Sui command not found in PATH\" && exit\
-        \ 1)\n                        \n                        echo \"Current active\
+        \ 1)\n                        \n                        # Check if SUI_CONFIG\
+        \ is provided\n                        if [ -z \"$SUI_CONFIG\" ]; then\n \
+        \                           echo \"\u26A0\uFE0F  Deployment skipped: SUI_CONFIG\
+        \ secret is not configured\"\n                            echo \"To enable\
+        \ deployment:\"\n                            echo \"1. Create a Sui wallet\"\
+        \n                            echo \"2. Export the wallet config\"\n     \
+        \                       echo \"3. Add it as SUI_CONFIG secret in GitHub repository\
+        \ settings\"\n                            echo \"4. Fund the wallet with testnet\
+        \ SUI tokens\"\n                            exit 0\n                     \
+        \   fi\n                        \n                        echo \"Current active\
         \ address:\"\n                        sui client active-address || {\n   \
         \                         echo \"\u274C No active address found. Please check\
         \ your SUI_CONFIG secret.\"\n                            exit 1\n        \
@@ -123,35 +132,32 @@ jobs:
         \ failed\"\n                            echo \"This might be due to insufficient\
         \ gas or network issues\"\n                            exit 1\n          \
         \              fi\n                    "
-    - name: Skip deployment notification
-      if: github.ref == 'refs/heads/main' && github.event_name == 'push' && secrets.SUI_CONFIG
-        == ''
-      run: "\n                        echo \"\u26A0\uFE0F  Deployment skipped: SUI_CONFIG\
-        \ secret is not configured\"\n                        echo \"To enable deployment:\"\
-        \n                        echo \"1. Create a Sui wallet\"\n              \
-        \          echo \"2. Export the wallet config\"\n                        echo\
-        \ \"3. Add it as SUI_CONFIG secret in GitHub repository settings\"\n     \
-        \                   echo \"4. Fund the wallet with testnet SUI tokens\"\n\
-        \                    "
     - name: Verify deployment
       if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+      env:
+        SUI_CONFIG: ${{ secrets.SUI_CONFIG }}
       run: "\n                        # Verify sui command is available\n        \
         \                which sui || (echo \"Sui command not found in PATH\" && exit\
-        \ 1)\n                        \n                        # Get the latest transaction\
-        \ status\n                        echo \"Checking recent transactions...\"\
-        \n                        sui client transactions --limit 5 || true\n    \
-        \                    \n                        LATEST_TX=$(sui client transactions\
-        \ --limit 1 | tail -n 1 | awk '{print $1}' 2>/dev/null || echo \"\")\n   \
-        \                     if [ -n \"$LATEST_TX\" ] && [ \"$LATEST_TX\" != \"digest\"\
-        \ ]; then\n                            echo \"Verifying transaction: $LATEST_TX\"\
-        \n                            # Check transaction status\n               \
-        \             if sui client transaction \"$LATEST_TX\" | grep -q \"Status.*Success\"\
-        ; then\n                                echo \"\u2705 Deployment verified\
-        \ successfully\"\n                            else\n                     \
-        \           echo \"\u274C Deployment verification failed\"\n             \
-        \                   sui client transaction \"$LATEST_TX\" || true\n      \
-        \                          exit 1\n                            fi\n      \
-        \                  else\n                            echo \"\u26A0\uFE0F \
-        \ No recent transaction found to verify, but deployment may have succeeded\"\
-        \n                            echo \"Check the Sui explorer for your package\
-        \ deployment\"\n                        fi\n                    "
+        \ 1)\n                        \n                        # Skip verification\
+        \ if no SUI_CONFIG was provided\n                        if [ -z \"$SUI_CONFIG\"\
+        \ ]; then\n                            echo \"\u26A0\uFE0F  Deployment verification\
+        \ skipped: No SUI_CONFIG provided\"\n                            exit 0\n\
+        \                        fi\n                        \n                  \
+        \      # Get the latest transaction status\n                        echo \"\
+        Checking recent transactions...\"\n                        sui client transactions\
+        \ --limit 5 || true\n                        \n                        LATEST_TX=$(sui\
+        \ client transactions --limit 1 | tail -n 1 | awk '{print $1}' 2>/dev/null\
+        \ || echo \"\")\n                        if [ -n \"$LATEST_TX\" ] && [ \"\
+        $LATEST_TX\" != \"digest\" ]; then\n                            echo \"Verifying\
+        \ transaction: $LATEST_TX\"\n                            # Check transaction\
+        \ status\n                            if sui client transaction \"$LATEST_TX\"\
+        \ | grep -q \"Status.*Success\"; then\n                                echo\
+        \ \"\u2705 Deployment verified successfully\"\n                          \
+        \  else\n                                echo \"\u274C Deployment verification\
+        \ failed\"\n                                sui client transaction \"$LATEST_TX\"\
+        \ || true\n                                exit 1\n                      \
+        \      fi\n                        else\n                            echo\
+        \ \"\u26A0\uFE0F  No recent transaction found to verify, but deployment may\
+        \ have succeeded\"\n                            echo \"Check the Sui explorer\
+        \ for your package deployment\"\n                        fi\n            \
+        \        "
