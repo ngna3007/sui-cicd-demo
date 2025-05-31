@@ -24,7 +24,7 @@ jobs:
         - stable
     steps:
     - name: Checkout code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v3.5.3
     - name: Install Rust
       uses: actions-rs/toolchain@v1
       with:
@@ -44,7 +44,7 @@ jobs:
       run: sui move test --gas-status > gas_report.txt && echo "Gas profiling results
         saved to gas_report.txt"
     - name: Upload gas report
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v3.1.3
       with:
         name: gas-report
         path: gas_report.txt
@@ -56,9 +56,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v3.5.3
     - name: Download gas report
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v3.0.2
       with:
         name: gas-report
         path: gas-reports
