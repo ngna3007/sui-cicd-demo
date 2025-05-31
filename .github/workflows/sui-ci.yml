@@ -105,10 +105,13 @@ jobs:
         \ in aliases:\n            alias = alias_entry.get('alias', '')\n        \
         \    pubkey_base64 = alias_entry.get('public_key_base64', '')\n          \
         \  \n            if pubkey_base64:\n                print(f\"Creating address\
-        \ for {alias}\")\n                try:\n                    subprocess.run(['sui',\
-        \ 'client', 'new-address', \n                                '--alias', alias,\n\
-        \                                '--key-base64', pubkey_base64], \n      \
-        \                          check=True)\n                except subprocess.CalledProcessError\
+        \ for {alias}\")\n                try:\n                    # Using ed25519\
+        \ as the key scheme, and providing alias as a positional argument\n      \
+        \              subprocess.run(['sui', 'client', 'new-address', \n        \
+        \                        'ed25519',  # key scheme\n                      \
+        \          alias,      # alias as positional argument\n                  \
+        \              '--base64-key', pubkey_base64], \n                        \
+        \        check=True)\n                except subprocess.CalledProcessError\
         \ as e:\n                    print(f\"Error creating address: {e}\")\n   \
         \ \n    # Set first address as active if none is set\n    result = subprocess.run(['sui',\
         \ 'client', 'active-address'],\n                        capture_output=True,\
