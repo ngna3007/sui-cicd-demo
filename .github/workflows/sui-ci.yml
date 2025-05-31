@@ -26,9 +26,8 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v3.5.3
     - name: Install Homebrew
-      run: /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-    - name: Configure Homebrew
-      run: "\n                        echo 'eval \"$(/home/linuxbrew/.linuxbrew/bin/brew\
+      run: "\n                        /bin/bash -c \"$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\"\
+        \n                        echo 'eval \"$(/home/linuxbrew/.linuxbrew/bin/brew\
         \ shellenv)\"' >> ~/.bashrc\n                        eval \"$(/home/linuxbrew/.linuxbrew/bin/brew\
         \ shellenv)\"\n                    "
     - name: Install Sui CLI
