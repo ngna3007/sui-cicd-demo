@@ -1,4 +1,4 @@
-name: Sui Smart Contract CI/CD
+name: my-project - Sui Smart Contract CI/CD
 'on':
   push:
     branches:
@@ -19,31 +19,40 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
     - name: Install Homebrew and Sui
-      run: "\n                        # Install Homebrew\n                       \
-        \ /bin/bash -c \"$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\"\
-        \n                        \n                        # Add brew to PATH for\
-        \ this step and future steps\n                        echo \"/home/linuxbrew/.linuxbrew/bin\"\
-        \ >> $GITHUB_PATH\n                        echo \"/home/linuxbrew/.linuxbrew/sbin\"\
-        \ >> $GITHUB_PATH\n                        \n                        # Set\
-        \ environment variables for this workflow\n                        echo \"\
-        HOMEBREW_PREFIX=/home/linuxbrew/.linuxbrew\" >> $GITHUB_ENV\n            \
-        \            echo \"HOMEBREW_CELLAR=/home/linuxbrew/.linuxbrew/Cellar\" >>\
-        \ $GITHUB_ENV\n                        echo \"HOMEBREW_REPOSITORY=/home/linuxbrew/.linuxbrew/Homebrew\"\
-        \ >> $GITHUB_ENV\n                        \n                        # Source\
-        \ brew environment for this step\n                        eval \"$(/home/linuxbrew/.linuxbrew/bin/brew\
-        \ shellenv)\"\n                        \n                        # Install\
-        \ dependencies\n                        sudo apt-get update\n            \
-        \            sudo apt-get install -y build-essential\n                   \
-        \     brew install gcc\n                        \n                       \
-        \ # Install Sui\n                        brew install sui\n              \
-        \          \n                        # Verify Sui installation\n         \
-        \               sui --version\n                    "
+      run: |
+        # Install Homebrew
+        /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+        
+        # Add brew to PATH for this step and future steps
+        echo "/home/linuxbrew/.linuxbrew/bin" >> $GITHUB_PATH
+        echo "/home/linuxbrew/.linuxbrew/sbin" >> $GITHUB_PATH
+        
+        # Set environment variables for this workflow
+        echo "HOMEBREW_PREFIX=/home/linuxbrew/.linuxbrew" >> $GITHUB_ENV
+        echo "HOMEBREW_CELLAR=/home/linuxbrew/.linuxbrew/Cellar" >> $GITHUB_ENV
+        echo "HOMEBREW_REPOSITORY=/home/linuxbrew/.linuxbrew/Homebrew" >> $GITHUB_ENV
+        
+        # Source brew environment for this step
+        eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+        
+        # Install dependencies
+        sudo apt-get update
+        sudo apt-get install -y build-essential
+        brew install gcc
+        
+        # Install Sui
+        brew install sui
+        
+        # Verify Sui installation
+        sui --version
     - name: Build Move modules
-      run: "\n                        # Verify sui command is available\n        \
-        \                which sui || (echo \"Sui command not found in PATH\" && exit\
-        \ 1)\n                        sui --version\n                        \n  \
-        \                      # Build the project\n                        sui move\
-        \ build\n                    "
+      run: |
+        # Verify sui command is available
+        which sui || (echo "Sui command not found in PATH" && exit 1)
+        sui --version
+        
+        # Build the project
+        sui move build
       working-directory: ${{ github.workspace }}
   test:
     name: Test
@@ -53,203 +62,45 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
     - name: Install Homebrew and Sui
-      run: "\n                        # Install Homebrew\n                       \
-        \ /bin/bash -c \"$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\"\
-        \n                        \n                        # Add brew to PATH for\
-        \ this step and future steps\n                        echo \"/home/linuxbrew/.linuxbrew/bin\"\
-        \ >> $GITHUB_PATH\n                        echo \"/home/linuxbrew/.linuxbrew/sbin\"\
-        \ >> $GITHUB_PATH\n                        \n                        # Set\
-        \ environment variables for this workflow\n                        echo \"\
-        HOMEBREW_PREFIX=/home/linuxbrew/.linuxbrew\" >> $GITHUB_ENV\n            \
-        \            echo \"HOMEBREW_CELLAR=/home/linuxbrew/.linuxbrew/Cellar\" >>\
-        \ $GITHUB_ENV\n                        echo \"HOMEBREW_REPOSITORY=/home/linuxbrew/.linuxbrew/Homebrew\"\
-        \ >> $GITHUB_ENV\n                        \n                        # Source\
-        \ brew environment for this step\n                        eval \"$(/home/linuxbrew/.linuxbrew/bin/brew\
-        \ shellenv)\"\n                        \n                        # Install\
-        \ dependencies\n                        sudo apt-get update\n            \
-        \            sudo apt-get install -y build-essential\n                   \
-        \     brew install gcc\n                        \n                       \
-        \ # Install Sui\n                        brew install sui\n              \
-        \          \n                        # Verify Sui installation\n         \
-        \               sui --version\n                    "
+      run: |
+        # Install Homebrew
+        /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+        
+        # Add brew to PATH for this step and future steps
+        echo "/home/linuxbrew/.linuxbrew/bin" >> $GITHUB_PATH
+        echo "/home/linuxbrew/.linuxbrew/sbin" >> $GITHUB_PATH
+        
+        # Set environment variables for this workflow
+        echo "HOMEBREW_PREFIX=/home/linuxbrew/.linuxbrew" >> $GITHUB_ENV
+        echo "HOMEBREW_CELLAR=/home/linuxbrew/.linuxbrew/Cellar" >> $GITHUB_ENV
+        echo "HOMEBREW_REPOSITORY=/home/linuxbrew/.linuxbrew/Homebrew" >> $GITHUB_ENV
+        
+        # Source brew environment for this step
+        eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+        
+        # Install dependencies
+        sudo apt-get update
+        sudo apt-get install -y build-essential
+        brew install gcc
+        
+        # Install Sui
+        brew install sui
+        
+        # Verify Sui installation
+        sui --version
     - name: Run Move tests
-      run: "\n                        # Verify sui command is available\n        \
-        \                which sui || (echo \"Sui command not found in PATH\" && exit\
-        \ 1)\n                        \n                        # Run tests\n    \
-        \                    sui move test\n                    "
+      run: |
+        # Verify sui command is available
+        which sui || (echo "Sui command not found in PATH" && exit 1)
+        
+        # Run tests
+        sui move test
       working-directory: ${{ github.workspace }}
-  security:
-    name: Security Analysis
-    runs-on: ubuntu-latest
-    needs: build
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-    - name: Install Homebrew and Sui
-      run: "\n                        # Install Homebrew\n                       \
-        \ /bin/bash -c \"$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\"\
-        \n                        \n                        # Add brew to PATH for\
-        \ this step and future steps\n                        echo \"/home/linuxbrew/.linuxbrew/bin\"\
-        \ >> $GITHUB_PATH\n                        echo \"/home/linuxbrew/.linuxbrew/sbin\"\
-        \ >> $GITHUB_PATH\n                        \n                        # Set\
-        \ environment variables for this workflow\n                        echo \"\
-        HOMEBREW_PREFIX=/home/linuxbrew/.linuxbrew\" >> $GITHUB_ENV\n            \
-        \            echo \"HOMEBREW_CELLAR=/home/linuxbrew/.linuxbrew/Cellar\" >>\
-        \ $GITHUB_ENV\n                        echo \"HOMEBREW_REPOSITORY=/home/linuxbrew/.linuxbrew/Homebrew\"\
-        \ >> $GITHUB_ENV\n                        \n                        # Source\
-        \ brew environment for this step\n                        eval \"$(/home/linuxbrew/.linuxbrew/bin/brew\
-        \ shellenv)\"\n                        \n                        # Install\
-        \ dependencies\n                        sudo apt-get update\n            \
-        \            sudo apt-get install -y build-essential jq\n                \
-        \        brew install gcc\n                        \n                    \
-        \    # Install Sui\n                        brew install sui\n           \
-        \             \n                        # Verify Sui installation\n      \
-        \                  sui --version\n                    "
-    - name: Run Sui Built-in Linters
-      run: "\n                        # Run Move build with linting enabled\n    \
-        \                    echo \"=== Running Sui Built-in Linters ===\"\n     \
-        \                   sui move build --lint || echo \"Linting completed with\
-        \ warnings\"\n                        \n                        # Check for\
-        \ potential security issues in linter output\n                        echo\
-        \ \"=== Linter Security Summary ===\"\n                        echo \"Built-in\
-        \ linters check for:\"\n                        echo \"- Coin field optimization\
-        \ (W03001)\"\n                        echo \"- Collection equality issues\
-        \ (W05001)\" \n                        echo \"- Custom state change problems\
-        \ (W02001)\"\n                        echo \"- Freeze wrapped object issues\
-        \ (W04001)\"\n                        echo \"- Self transfer anti-patterns\
-        \ (W01001)\"\n                        echo \"- Share owned object problems\
-        \ (W00001)\"\n                    "
-      working-directory: ${{ github.workspace }}
-    - name: Security Best Practices Check
-      run: "\n                        echo \"=== Security Best Practices Analysis\
-        \ ===\"\n                        \n                        # Check for common\
-        \ security patterns\n                        echo \"Checking for common security\
-        \ patterns...\"\n                        \n                        # Check\
-        \ for proper access controls\n                        echo \"\u2192 Checking\
-        \ access control patterns...\"\n                        grep -r \"public(\"\
-        \ sources/ || echo \"No public functions found\"\n                       \
-        \ grep -r \"entry \" sources/ || echo \"No entry functions found\"\n     \
-        \                   grep -r \"public(package)\" sources/ || echo \"No package-level\
-        \ functions found\"\n                        \n                        # Check\
-        \ for proper object management\n                        echo \"\u2192 Checking\
-        \ object management...\"\n                        grep -r \"transfer::\" sources/\
-        \ || echo \"No transfer operations found\"\n                        grep -r\
-        \ \"share_object\" sources/ || echo \"No shared objects found\"\n        \
-        \                \n                        # Check for capability usage\n\
-        \                        echo \"\u2192 Checking capability usage...\"\n  \
-        \                      grep -r \"has key\" sources/ || echo \"No key capabilities\
-        \ found\"\n                        grep -r \"has store\" sources/ || echo\
-        \ \"No store capabilities found\"\n                        \n            \
-        \            # Check for potential flash loan patterns\n                 \
-        \       echo \"\u2192 Checking for flash loan patterns (Hot Potato)...\"\n\
-        \                        grep -r \"borrow\\|loan\" sources/ || echo \"No borrowing\
-        \ patterns found\"\n                        \n                        # Check\
-        \ for arithmetic operations that might overflow\n                        echo\
-        \ \"\u2192 Checking arithmetic operations...\"\n                        grep\
-        \ -r \"<<\\|>>\" sources/ && echo \"\u26A0\uFE0F  Found bitwise operations\
-        \ - check for overflow\" || echo \"No bitwise operations found\"\n       \
-        \                 \n                        # Check for external calls\n \
-        \                       echo \"\u2192 Checking external module usage...\"\n\
-        \                        grep -r \"use.*::\" sources/ | head -10 || echo \"\
-        No external modules found\"\n                        \n                  \
-        \      echo \"\u2705 Security best practices check completed\"\n         \
-        \           "
-      working-directory: ${{ github.workspace }}
-    - name: Formal Verification Check
-      run: "\n                        echo \"=== Formal Verification Analysis ===\"\
-        \n                        \n                        # Check if Sui Prover\
-        \ specs are present\n                        if find sources/ -name \"*.move\"\
-        \ -exec grep -l \"spec\\|ensures\\|requires\\|aborts_if\" {} \\; | head -5;\
-        \ then\n                            echo \"\u2705 Found formal verification\
-        \ specs\"\n                            echo \"Formal specs help prove:\"\n\
-        \                            echo \"- Function correctness\"\n           \
-        \                 echo \"- Invariant preservation\"\n                    \
-        \        echo \"- Absence of arithmetic overflows\"\n                    \
-        \        echo \"- Resource safety properties\"\n                        else\n\
-        \                            echo \"\u26A0\uFE0F  No formal verification specs\
-        \ found\"\n                            echo \"Consider adding formal specs\
-        \ for critical functions:\"\n                            echo \"- spec ensures\
-        \ result == expected\"\n                            echo \"- spec requires\
-        \ input > 0\"\n                            echo \"- spec aborts_if condition\"\
-        \n                            echo \"\"\n                            echo\
-        \ \"Learn more: https://github.com/asymptotic-io/sui-prover\"\n          \
-        \              fi\n                    "
-      working-directory: ${{ github.workspace }}
-    - name: Generate Security Report
-      run: "\n                        echo \"=== Generating Security Report ===\"\n\
-        \                        \n                        # Create security report\n\
-        \                        cat > security-report.md << 'EOF'\n             \
-        \           # Security Analysis Report\n                        \n       \
-        \                 ## Overview\n                        This report summarizes\
-        \ the security analysis of the Sui Move smart contracts.\n               \
-        \         \n                        ## Tools Used\n                      \
-        \  - **Sui Built-in Linters**: Checks for Move-specific anti-patterns\n  \
-        \                      - **Security Best Practices**: Manual checks for common\
-        \ vulnerabilities\n                        - **Formal Verification**: Checks\
-        \ for mathematical proofs of correctness\n                        \n     \
-        \                   ## Security Considerations for Sui Move Contracts\n  \
-        \                      \n                        ### 1. Access Control\n \
-        \                       - \u2705 Review function visibility (`public`, `entry`,\
-        \ `public(package)`)\n                        - \u2705 Ensure proper capability-based\
-        \ security\n                        - \u2705 Validate object ownership patterns\n\
-        \                        \n                        ### 2. Object Management\
-        \  \n                        - \u2705 Proper use of transfer operations\n\
-        \                        - \u2705 Correct shared vs owned object handling\n\
-        \                        - \u2705 Avoid freezing wrapped objects\n       \
-        \                 \n                        ### 3. Arithmetic Safety\n   \
-        \                     - \u2705 Move provides automatic overflow protection\n\
-        \                        - \u26A0\uFE0F Bitwise operations don't have overflow\
-        \ checks\n                        - \u2705 Consider precision errors in calculations\n\
-        \                        \n                        ### 4. Resource Safety\n\
-        \                        - \u2705 Move's linear type system prevents double-spending\n\
-        \                        - \u2705 Resources must be explicitly consumed or\
-        \ stored\n                        - \u2705 No dangling references possible\n\
-        \                        \n                        ### 5. Flash Loan Protection\n\
-        \                        - \u2705 Analyze \"Hot Potato\" patterns\n      \
-        \                  - \u2705 Ensure proper state validation\n             \
-        \           - \u2705 Check for price oracle manipulation\n               \
-        \         \n                        ## Recommended Security Practices\n  \
-        \                      \n                        1. **Use Formal Verification**:\
-        \ Add specs to critical functions\n                        2. **Professional\
-        \ Audit**: Consider audits from:\n                           - MoveBit (Move-focused\
-        \ security)\n                           - OtterSec (Multi-chain auditor)\n\
-        \                           - Beosin (Move Lint tools)\n                 \
-        \          - SlowMist (Comprehensive auditing)\n                        3.\
-        \ **Static Analysis**: Use available linting tools\n                     \
-        \   4. **Testing**: Comprehensive unit and integration tests\n           \
-        \             5. **Documentation**: Clear function specifications\n      \
-        \                  \n                        ## External Security Resources\n\
-        \                        \n                        - [Sui Move Security Guide](https://docs.sui.io/concepts/sui-move-concepts)\n\
-        \                        - [MoveBit Security Tools](https://m.movebit.xyz/MoveScanner)\n\
-        \                        - [Sui Prover](https://github.com/asymptotic-io/sui-prover)\n\
-        \                        - [SlowMist Audit Primer](https://github.com/slowmist/Sui-MOVE-Smart-Contract-Auditing-Primer)\n\
-        \                        \n                        ---\n                 \
-        \       *Report generated on $(date)*\n                        EOF\n     \
-        \                   \n                        echo \"\u2705 Security report\
-        \ generated: security-report.md\"\n                        \n            \
-        \            # Display key security recommendations\n                    \
-        \    echo \"\"\n                        echo \"=== Key Security Recommendations\
-        \ ===\"\n                        echo \"1. \U0001F50D Consider professional\
-        \ security audit before mainnet\"\n                        echo \"2. \U0001F4DD\
-        \ Add formal verification specs for critical functions\"\n               \
-        \         echo \"3. \U0001F9EA Implement comprehensive test coverage\"\n \
-        \                       echo \"4. \U0001F512 Review all public/entry function\
-        \ access controls\"\n                        echo \"5. \U0001F4B0 Validate\
-        \ economic assumptions and tokenomics\"\n                        echo \"6.\
-        \ \U0001F3D7\uFE0F  Test upgrade and migration procedures\"\n            \
-        \        "
-      working-directory: ${{ github.workspace }}
-    - name: Upload Security Report
-      uses: actions/upload-artifact@v4
-      with:
-        name: security-report
-        path: security-report.md
-  deploy:
-    name: Deploy to Devnet
+  deploy-devnet:
+    name: Deploy to devnet
     runs-on: ubuntu-latest
     needs:
     - test
-    - security
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     env:
       SUI_NETWORK: devnet
@@ -260,110 +111,132 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
     - name: Install Homebrew and Sui
-      run: "\n                        # Install Homebrew\n                       \
-        \ /bin/bash -c \"$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\"\
-        \n                        \n                        # Add brew to PATH for\
-        \ this step and future steps\n                        echo \"/home/linuxbrew/.linuxbrew/bin\"\
-        \ >> $GITHUB_PATH\n                        echo \"/home/linuxbrew/.linuxbrew/sbin\"\
-        \ >> $GITHUB_PATH\n                        \n                        # Set\
-        \ environment variables for this workflow\n                        echo \"\
-        HOMEBREW_PREFIX=/home/linuxbrew/.linuxbrew\" >> $GITHUB_ENV\n            \
-        \            echo \"HOMEBREW_CELLAR=/home/linuxbrew/.linuxbrew/Cellar\" >>\
-        \ $GITHUB_ENV\n                        echo \"HOMEBREW_REPOSITORY=/home/linuxbrew/.linuxbrew/Homebrew\"\
-        \ >> $GITHUB_ENV\n                        \n                        # Source\
-        \ brew environment for this step\n                        eval \"$(/home/linuxbrew/.linuxbrew/bin/brew\
-        \ shellenv)\"\n                        \n                        # Install\
-        \ dependencies\n                        sudo apt-get update\n            \
-        \            sudo apt-get install -y build-essential jq\n                \
-        \        brew install gcc\n                        \n                    \
-        \    # Install Sui\n                        brew install sui\n           \
-        \             \n                        # Verify Sui installation\n      \
-        \                  sui --version\n                    "
+      run: |
+        # Install Homebrew
+        /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+        
+        # Add brew to PATH for this step and future steps
+        echo "/home/linuxbrew/.linuxbrew/bin" >> $GITHUB_PATH
+        echo "/home/linuxbrew/.linuxbrew/sbin" >> $GITHUB_PATH
+        
+        # Set environment variables for this workflow
+        echo "HOMEBREW_PREFIX=/home/linuxbrew/.linuxbrew" >> $GITHUB_ENV
+        echo "HOMEBREW_CELLAR=/home/linuxbrew/.linuxbrew/Cellar" >> $GITHUB_ENV
+        echo "HOMEBREW_REPOSITORY=/home/linuxbrew/.linuxbrew/Homebrew" >> $GITHUB_ENV
+        
+        # Source brew environment for this step
+        eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+        
+        # Install dependencies
+        sudo apt-get update
+        sudo apt-get install -y build-essential jq
+        brew install gcc
+        
+        # Install Sui
+        brew install sui
+        
+        # Verify Sui installation
+        sui --version
     - name: Setup Sui CLI config and Deploy
-      run: "\n                        # Verify sui command is available\n        \
-        \                which sui || (echo \"Sui command not found in PATH\" && exit\
-        \ 1)\n                        \n                        # Check if all required\
-        \ secrets are provided\n                        if [ -z \"$SUI_CONFIG\" ]\
-        \ || [ -z \"$SUI_KEYSTORE\" ] || [ -z \"$SUI_ALIASES\" ]; then\n         \
-        \                   echo \"\u26A0\uFE0F  Deployment skipped: Required secrets\
-        \ are not configured\"\n                            echo \"To enable deployment:\"\
-        \n                            echo \"1. Add SUI_CONFIG secret with your wallet\
-        \ configuration\"\n                            echo \"2. Add SUI_KEYSTORE\
-        \ secret with your keystore file content\"\n                            echo\
-        \ \"3. Add SUI_ALIASES secret with your aliases file content\"\n         \
-        \                   echo \"4. Fund the wallet with devnet SUI tokens\"\n \
-        \                           exit 0\n                        fi\n         \
-        \               \n                        # Create config directory\n    \
-        \                    mkdir -p ~/.sui/sui_config\n                        \n\
-        \                        echo \"Setting up Sui configuration...\"\n      \
-        \                  echo \"SUI_CONFIG secret present: $([ -n \"$SUI_CONFIG\"\
-        \ ] && echo \"YES\" || echo \"NO\")\"\n                        echo \"SUI_KEYSTORE\
-        \ secret present: $([ -n \"$SUI_KEYSTORE\" ] && echo \"YES\" || echo \"NO\"\
-        )\"\n                        echo \"SUI_ALIASES secret present: $([ -n \"\
-        $SUI_ALIASES\" ] && echo \"YES\" || echo \"NO\")\"\n                     \
-        \   \n                        # Write config file\n                      \
-        \  echo \"Writing SUI_CONFIG to client.yaml...\"\n                       \
-        \ echo \"$SUI_CONFIG\" > ~/.sui/sui_config/client.yaml\n                 \
-        \       echo \"\u2705 Written SUI_CONFIG to client.yaml\"\n              \
-        \          \n                        # Write keystore file\n             \
-        \           echo \"Writing SUI_KEYSTORE to sui.keystore...\"\n           \
-        \             echo \"$SUI_KEYSTORE\" > ~/.sui/sui_config/sui.keystore\n  \
-        \                      echo \"\u2705 Written SUI_KEYSTORE\"\n            \
-        \            \n                        # Write aliases file\n            \
-        \            echo \"Writing SUI_ALIASES to sui.aliases...\"\n            \
-        \            echo \"$SUI_ALIASES\" > ~/.sui/sui_config/sui.aliases\n     \
-        \                   echo \"\u2705 Written SUI_ALIASES\"\n                \
-        \        \n                        # Set proper permissions\n            \
-        \            chmod 600 ~/.sui/sui_config/*\n                        \n   \
-        \                     # Fix the keystore path in client.yaml\n           \
-        \             echo \"Fixing keystore path in client.yaml...\"\n          \
-        \              sed -i 's|/home/ngocanh/.sui/sui_config/sui.keystore|/home/runner/.sui/sui_config/sui.keystore|g'\
-        \ ~/.sui/sui_config/client.yaml\n                        echo \"\u2705 Updated\
-        \ keystore path\"\n                        \n                        # Try\
-        \ to check addresses from configuration\n                        echo \"===\
-        \ Checking Sui Configuration ===\"\n                        sui client addresses\
-        \ || {\n                            echo \"Failed to get addresses from keystore.\
-        \ Creating a new address for CI deployment...\"\n                        \
-        \    \n                            # Create a new address for CI deployment\n\
-        \                            echo \"Creating new address...\"\n          \
-        \                  NEW_ADDRESS=$(sui client new-address ed25519 --json | jq\
-        \ -r '.address' 2>/dev/null || {\n                                sui client\
-        \ new-address ed25519 | grep -oE '0x[a-fA-F0-9]+' | head -1\n            \
-        \                })\n                            \n                      \
-        \      if [ -n \"$NEW_ADDRESS\" ]; then\n                                echo\
-        \ \"\u2705 Created new address: $NEW_ADDRESS\"\n                         \
-        \       \n                                # Try to get devnet tokens\n   \
-        \                             echo \"Requesting devnet tokens...\"\n     \
-        \                           curl -X POST https://faucet.devnet.sui.io/gas\
-        \                                     -H 'Content-Type: application/json'\
-        \                                     -d \"{\"FixedAmountRequest\":{\"recipient\"\
-        :\"$NEW_ADDRESS\"}}\"                                     --silent --show-error\
-        \ || echo \"Warning: Failed to request tokens from faucet\"\n            \
-        \                    \n                                # Wait for the faucet\n\
-        \                                echo \"Waiting for faucet transaction...\"\
-        \n                                sleep 10\n                            else\n\
-        \                                echo \"\u274C Failed to create new address\"\
-        \n                            exit 1\n                            fi\n   \
-        \                     }\n                        \n                      \
-        \  # Final check - get active address\n                        ACTIVE_ADDRESS=$(sui\
-        \ client active-address 2>/dev/null || echo \"\")\n                      \
-        \  if [ -z \"$ACTIVE_ADDRESS\" ] || [ \"$ACTIVE_ADDRESS\" = \"None\" ]; then\n\
-        \                            echo \"\u274C No active address found after configuration\"\
-        \n                            exit 1\n                        else\n     \
-        \                       echo \"\u2705 Active address: $ACTIVE_ADDRESS\"\n\
-        \                        fi\n                        \n                  \
-        \      # Check if we have gas before attempting deployment\n             \
-        \           echo \"Checking gas balance...\"\n                        if !\
-        \ sui client gas; then\n                            echo \"\u274C Failed to\
-        \ check gas balance or no gas objects found.\"\n                         \
-        \   echo \"Please fund your address with devnet SUI tokens before deployment.\"\
-        \n                            echo \"You can get devnet tokens from: https://discord.com/channels/916379725201563759/971488439931392130\"\
-        \n                            exit 1\n                        fi\n       \
-        \                 \n                        echo \"=== Publishing Package\
-        \ ===\"\n                        if sui client publish --gas-budget 100000000;\
-        \ then\n                            echo \"\u2705 Package published successfully\
-        \ to devnet\"\n                        else\n                            echo\
-        \ \"\u274C Deployment failed\"\n                            echo \"This might\
-        \ be due to insufficient gas, network issues, or compilation errors\"\n  \
-        \                          exit 1\n                        fi\n          \
-        \          "
+      run: |
+        # Verify sui command is available
+        which sui || (echo "Sui command not found in PATH" && exit 1)
+        
+        # Check if all required secrets are provided
+        if [ -z "$SUI_CONFIG" ] || [ -z "$SUI_KEYSTORE" ] || [ -z "$SUI_ALIASES" ]; then
+            echo "⚠️  Deployment skipped: Required secrets are not configured"
+            echo "To enable deployment:"
+            echo "1. Add SUI_CONFIG secret with your wallet configuration"
+            echo "2. Add SUI_KEYSTORE secret with your keystore file content"
+            echo "3. Add SUI_ALIASES secret with your aliases file content"
+            echo "4. Fund the wallet with devnet SUI tokens"
+            exit 0
+        fi
+        
+        # Create config directory
+        mkdir -p ~/.sui/sui_config
+        
+        echo "Setting up Sui configuration..."
+        echo "SUI_CONFIG secret present: $([ -n "$SUI_CONFIG" ] && echo "YES" || echo "NO")"
+        echo "SUI_KEYSTORE secret present: $([ -n "$SUI_KEYSTORE" ] && echo "YES" || echo "NO")"
+        echo "SUI_ALIASES secret present: $([ -n "$SUI_ALIASES" ] && echo "YES" || echo "NO")"
+        
+        # Write config file
+        echo "Writing SUI_CONFIG to client.yaml..."
+        echo "$SUI_CONFIG" > ~/.sui/sui_config/client.yaml
+        echo "✅ Written SUI_CONFIG to client.yaml"
+        
+        # Write keystore file
+        echo "Writing SUI_KEYSTORE to sui.keystore..."
+        echo "$SUI_KEYSTORE" > ~/.sui/sui_config/sui.keystore
+        echo "✅ Written SUI_KEYSTORE"
+        
+        # Write aliases file
+        echo "Writing SUI_ALIASES to sui.aliases..."
+        echo "$SUI_ALIASES" > ~/.sui/sui_config/sui.aliases
+        echo "✅ Written SUI_ALIASES"
+        
+        # Set proper permissions
+        chmod 600 ~/.sui/sui_config/*
+        
+        # Fix the keystore path in client.yaml
+        echo "Fixing keystore path in client.yaml..."
+        sed -i 's|/home/ngocanh/.sui/sui_config/sui.keystore|/home/runner/.sui/sui_config/sui.keystore|g' ~/.sui/sui_config/client.yaml
+        echo "✅ Updated keystore path"
+        
+        # Try to check addresses from configuration
+        echo "=== Checking Sui Configuration ==="
+        sui client addresses || {
+            echo "Failed to get addresses from keystore. Creating a new address for CI deployment..."
+            
+            # Create a new address for CI deployment
+            echo "Creating new address..."
+            NEW_ADDRESS=$(sui client new-address ed25519 --json | jq -r '.address' 2>/dev/null || {
+                sui client new-address ed25519 | grep -oE '0x[a-fA-F0-9]+' | head -1
+            })
+            
+            if [ -n "$NEW_ADDRESS" ]; then
+                echo "✅ Created new address: $NEW_ADDRESS"
+                
+                # Try to get devnet tokens
+                echo "Requesting devnet tokens..."
+                curl -X POST https://faucet.devnet.sui.io/gas \
+                    -H 'Content-Type: application/json' \
+                    -d "{\"FixedAmountRequest\":{\"recipient\":\"$NEW_ADDRESS\"}}" \
+                    --silent --show-error || echo "Warning: Failed to request tokens from faucet"
+                
+                # Wait for the faucet
+                echo "Waiting for faucet transaction..."
+                sleep 10
+            else
+                echo "❌ Failed to create new address"
+            exit 1
+            fi
+        }
+        
+        # Final check - get active address
+        ACTIVE_ADDRESS=$(sui client active-address 2>/dev/null || echo "")
+        if [ -z "$ACTIVE_ADDRESS" ] || [ "$ACTIVE_ADDRESS" = "None" ]; then
+            echo "❌ No active address found after configuration"
+            exit 1
+        else
+            echo "✅ Active address: $ACTIVE_ADDRESS"
+        fi
+        
+        # Check if we have gas before attempting deployment
+        echo "Checking gas balance..."
+        if ! sui client gas; then
+            echo "❌ Failed to check gas balance or no gas objects found."
+            echo "Please fund your address with devnet SUI tokens before deployment."
+            echo "You can get devnet tokens from: https://discord.com/channels/916379725201563759/971488439931392130"
+            exit 1
+        fi
+        
+        echo "=== Publishing Package ==="
+        if sui client publish --gas-budget 100000000; then
+            echo "✅ Package published successfully to devnet"
+        else
+            echo "❌ Deployment failed"
+            echo "This might be due to insufficient gas, network issues, or compilation errors"
+            exit 1
+        fi
